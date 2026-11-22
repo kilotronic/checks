@@ -274,10 +274,12 @@ if ! run us-english && grep -q "The organization's plan." b.md; then pass "us-en
   sed 's/^/     /' b.md "$tmp/log"
 fi
 clean_repo
+# shellcheck disable=SC2016 # literal Markdown
 printf '# Notes\n\nThe colour of `colour()` and [the colour](https://example.test/colour).\n\n```py\ncolour = 1\n```\n' >b.md
 printf 'colour==0.1.5\n' >requirements.txt
 git add -A
 run us-english || true
+# shellcheck disable=SC2016 # literal Markdown
 if grep -q 'The color of `colour()` and \[the color\](https://example.test/colour).' b.md && grep -q '^colour = 1$' b.md \
   && grep -q '^colour==0.1.5$' requirements.txt; then pass "us-english leaves code, links and requirements files as written"; else
   fail "us-english leaves code, links and requirements files as written"
