@@ -1,0 +1,3 @@
+# us-english (codespell) reads this. LICENCE is a file name vendored-license-check matches, not prose.
+[codespell]
+ignore-regex = \bLICENCE\b

@@ -83,6 +83,8 @@ repos:
       - id: markdownlint
       - id: yamllint
       - id: csv-lint # UTF-8, same columns in every row, a final newline; never rewritten
+      - id: us-english # British spellings in Markdown, text and reStructuredText rewritten to American
+      - id: us-english-commit-msg # the same check on the commit message (commit-msg stage); reports only
       - id: check-json
       - id: check-yaml
       - id: check-toml
@@ -100,16 +102,17 @@ repos:
 Run the same hooks in CI with `prek run --all-files` (`SKIP=` any hook CI must not run), so a commit is
 checked the same way at commit time and in CI.
 
-| Hooks                       | Versions                 | Default configuration when the repository has none of its own                                                                                                                                                              |
-| --------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ruff-format`, `ruff-check` | ruff 0.17.4              | ruff's defaults (`ruff.toml` / `pyproject.toml` win, including their `exclude` / `extend-exclude`)                                                                                                                         |
-| `prettier`                  | prettier 3.9.10          | prettier's defaults (`.prettierrc`, `.prettierignore` win); lockfiles skipped                                                                                                                                              |
-| `shfmt`                     | shfmt-py 4.2.0           | `-i 2 -ci -bn`; a `.editorconfig` replaces them                                                                                                                                                                            |
-| `taplo-format`              | taplo 0.9.3              | taplo's defaults (`taplo.toml` / `.taplo.toml` win)                                                                                                                                                                        |
-| `markdownlint`              | markdownlint-cli2 0.24.0 | [`src/markdownlint/.markdownlint.jsonc`](src/markdownlint/.markdownlint.jsonc): line length and table layout left to prettier; a repository's `.markdownlint.*` adds to it (below)                                         |
-| `yamllint`                  | yamllint 1.38.0          | [`src/kilotronic_lint/yamllint.yaml`](src/kilotronic_lint/yamllint.yaml): spacing left to prettier, `on:` allowed; a `#cloud-config` first line is allowed either way                                                      |
-| `csv-lint`                  | this repository          | none needed; prints where, never a cell's text                                                                                                                                                                             |
-| `check-*`, fixers           | pre-commit-hooks 6.0.0   | CSV/TSV files are never rewritten; `check-json` skips JSON-with-comments files (below); `mixed-line-ending` fixes a file that mixes LF and CRLF to the one most of its lines use, and leaves a file that is all CRLF alone |
+| Hooks                                 | Versions                 | Default configuration when the repository has none of its own                                                                                                                                                              |
+| ------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ruff-format`, `ruff-check`           | ruff 0.17.4              | ruff's defaults (`ruff.toml` / `pyproject.toml` win, including their `exclude` / `extend-exclude`)                                                                                                                         |
+| `prettier`                            | prettier 3.9.10          | prettier's defaults (`.prettierrc`, `.prettierignore` win); lockfiles skipped                                                                                                                                              |
+| `shfmt`                               | shfmt-py 4.2.0           | `-i 2 -ci -bn`; a `.editorconfig` replaces them                                                                                                                                                                            |
+| `taplo-format`                        | taplo 0.9.3              | taplo's defaults (`taplo.toml` / `.taplo.toml` win)                                                                                                                                                                        |
+| `markdownlint`                        | markdownlint-cli2 0.24.0 | [`src/markdownlint/.markdownlint.jsonc`](src/markdownlint/.markdownlint.jsonc): line length and table layout left to prettier; a repository's `.markdownlint.*` adds to it (below)                                         |
+| `yamllint`                            | yamllint 1.38.0          | [`src/kilotronic_lint/yamllint.yaml`](src/kilotronic_lint/yamllint.yaml): spacing left to prettier, `on:` allowed; a `#cloud-config` first line is allowed either way                                                      |
+| `csv-lint`                            | this repository          | none needed; prints where, never a cell's text                                                                                                                                                                             |
+| `us-english`, `us-english-commit-msg` | codespell 2.4.3          | only codespell's British-to-American list, never its typo list; code files are left alone; a repository's own `.codespellrc`, `setup.cfg` or `[tool.codespell]` adds words or patterns to ignore                           |
+| `check-*`, fixers                     | pre-commit-hooks 6.0.0   | CSV/TSV files are never rewritten; `check-json` skips JSON-with-comments files (below); `mixed-line-ending` fixes a file that mixes LF and CRLF to the one most of its lines use, and leaves a file that is all CRLF alone |
 
 **JSON with comments.** `check-json` skips the files that tools read with comments allowed: `tsconfig*.json`,
 `jsconfig*.json`, `appsettings*.json` (ASP.NET Core), anything in `.vscode/` or `.devcontainer/`, and `*.jsonc`.
@@ -123,7 +126,7 @@ defaults instead. A `.markdownlint-cli2.*` file, or a `.cjs` / `.mjs` one, is us
 
 **Your own `exclude:`.** The bundle's own skips (lockfiles for prettier, CSV for the fixers, JSON with comments
 for check-json) are in each hook's `files:`, so setting `exclude:` on a hook in your config adds to them instead
-of replacing them. (Setting `files:` does replace them.) ruff hooks also honour `exclude` / `extend-exclude` in
+of replacing them. (Setting `files:` does replace them.) ruff hooks also honor `exclude` / `extend-exclude` in
 your ruff configuration, and ruff's own default skips (`build/`, `dist/`, `.venv/`, `node_modules/` and the like).
 
 The `lint.sh` hooks (`shellcheck`, `actionlint`, `pinned`, `workflow-safety`, `non-root`) run the Action's own

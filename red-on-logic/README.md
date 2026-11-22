@@ -25,11 +25,11 @@ checked against real pull requests.
      ...), `jest.setup.*`, `vitest.setup.*`, `setupTests.*`, and `setup.py` or `noxfile.py` at the root.
 
    A missing data file or an older runner config would fail the base for a reason that is not the code under test.
-   Behaviour kept outside source files (SQL, templates, rules) goes back too when the `code-paths` input names it.
+   Behavior kept outside source files (SQL, templates, rules) goes back too when the `code-paths` input names it.
 
 4. It puts the checkout back (`git reset --hard` to the head). It refuses to start with uncommitted changes to
    tracked files, or when an untracked file sits where the base run would write one; it does not reset when HEAD
-   or the branch moved during the run, and says which files to put back. Ctrl-C, a cancelled job (SIGTERM) and a
+   or the branch moved during the run, and says which files to put back. Ctrl-C, a canceled job (SIGTERM) and a
    closed terminal (SIGHUP) all put the checkout back first.
 
 A test is **judged** when it is new or its own lines changed. A changed line inside no test (an import, a constant,
@@ -57,11 +57,11 @@ nothing is read:
 - source: code (by extension: `.py`, `.ts`, `.go`, `.sh`, ...), test files, source files beside the tests
   (`conftest.py`, helpers), and whatever the `code-paths` and `test-paths` inputs name;
 - not source: docs (`*.md`, ...), config and dot files, dependency manifests and lockfiles (`pyproject.toml`,
-  `package.json`, `package-lock.json`, `uv.lock`, `requirements*.txt`, `renovate.json`), licence and metadata
+  `package.json`, `package-lock.json`, `uv.lock`, `requirements*.txt`, `renovate.json`), license and metadata
   files, test data, and everything under `.github/`.
 
-So an edit to a config file that changes behaviour (a dependency's version in `pyproject.toml`) also passes
-without a test; telling a version bump from a behaviour change in such a file is not attempted.
+So an edit to a config file that changes behavior (a dependency's version in `pyproject.toml`) also passes
+without a test; telling a version bump from a behavior change in such a file is not attempted.
 
 ### Examples
 
@@ -113,8 +113,8 @@ service: b`, and on the text after its type, so `^` anchors work. A test that ca
 only argparse's exit (`SystemExit: 2`; the "unrecognized arguments" text goes to stderr), hence the last line. A test that checks only an exit code (`assert
 r.returncode == 0`) never shows the command line's words, so it reads as proof: assert on the output too.
 
-A pull request that only adds a new function, with no change to existing behaviour, is red on import by nature.
-Either test behaviour the old code gets wrong, land the new name first (with a wrong answer) in its own pull
+A pull request that only adds a new function, with no change to existing behavior, is red on import by nature.
+Either test behavior the old code gets wrong, land the new name first (with a wrong answer) in its own pull
 request, or skip the check with a reason.
 
 ## Skipping it, with a reason
@@ -123,7 +123,7 @@ A pure refactor or a test-only pull request has nothing to prove (a docs-only on
 indented, in any commit message (a trailer), or as a label:
 
 ```text
-red-on-logic: not applicable (pure refactor, no behaviour change)
+red-on-logic: not applicable (pure refactor, no behavior change)
 ```
 
 The reason is printed, and a skip with no reason (or the placeholder `<reason>`) fails. A label is read when the job runs: add `labeled` and

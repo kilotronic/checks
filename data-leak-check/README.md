@@ -81,7 +81,7 @@ commits. For a newly pushed branch, that is everything on it that the default br
 events check the checked-out commit. It fetches the history it needs itself, so the default shallow checkout
 is fine.
 
-**Where the list comes from.** Store it as an organisation or repository **secret** or **variable** named
+**Where the list comes from.** Store it as an organization or repository **secret** or **variable** named
 `DATA_LEAK_DENYLIST` and pass it in:
 
 ```yaml
@@ -96,7 +96,7 @@ with:
 
 **Prefer a secret for public repositories.** GitHub masks a secret's value in the log. It does not mask a
 variable: it prints the Action's inputs at the top of the step's log, so a variable's denylist is readable by
-anyone who can see the run, which on a public repository is everyone. For an organisation secret, give the
+anyone who can see the run, which on a public repository is everyone. For an organization secret, give the
 public repositories access to it in the organisation's settings.
 
 **A missing denylist fails the check** by default (`if-empty: fail`), so a secret that was never set, or that
