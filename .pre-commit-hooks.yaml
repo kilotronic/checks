@@ -114,7 +114,7 @@
 - id: us-english
   name: us-english (British spellings in prose rewritten to American)
   description: codespell's British-to-American list only, on Markdown, plain text and reStructuredText; code is left alone. A repository's own codespell config (.codespellrc, setup.cfg or pyproject's [tool.codespell]) adds words to ignore.
-  entry: codespell --builtin en-GB_to_en-US '--regex=[\w\-]+' --write-changes
+  entry: kilotronic-us-english
   language: python
   additional_dependencies: ['codespell[toml]==2.4.3']
   files: (?i)\.(md|markdown|txt|rst)$
