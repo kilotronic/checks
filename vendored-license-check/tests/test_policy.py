@@ -121,11 +121,19 @@ def test_a_disallowed_license_fails_even_with_no_files(tmp_path: Path) -> None:
 
 def _action(tree: Path, **inputs: str) -> subprocess.CompletedProcess:
     text = (ROOT / "action.yml").read_text(encoding="utf-8")
-    script = text.split("name: Run vendored-license-check", 1)[1].split("run: |", 1)[1]
+    step, script = text.split("name: Run vendored-license-check", 1)[1].split(
+        "run: |", 1
+    )
     values = {"root-dir": str(tree), "manifest": "vendored-assets.toml", "roots": ""}
     values.update({"allow": "", "deny": "", **inputs})
-    script = re.sub(r"\$\{\{ inputs\.([a-z-]+) \}\}", lambda m: values[m[1]], script)
-    env = dict(os.environ, GITHUB_ACTION_PATH=str(ROOT))
+    # The inputs reach the script through the step's env:, as GitHub fills it in.
+    passed = re.findall(
+        r"^\s+(\w+): \$\{\{ inputs\.([a-z-]+) \}\}$", step, re.MULTILINE
+    )
+    assert "${{" not in script, "an input is written into the script"
+    env = dict(
+        os.environ, GITHUB_ACTION_PATH=str(ROOT), **{k: values[v] for k, v in passed}
+    )
     return subprocess.run(
         ["bash", "-c", script], env=env, capture_output=True, text=True, check=False
     )

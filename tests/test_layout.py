@@ -86,3 +86,16 @@ def test_the_root_package_names_each_tool_package_that_exists() -> None:
     ]["targets"]["wheel"]
     for path in wheel["packages"]:
         assert (ROOT / path / "__init__.py").is_file(), path
+
+
+def test_no_action_writes_an_input_into_a_run_script() -> None:
+    # An input is the caller's text; written into a run: script it becomes shell code. Pass it
+    # through env: and use "$NAME".
+    for tool in TOOLS:
+        action = (ROOT / tool / "action.yml").read_text()
+        for n, line in enumerate(action.splitlines(), 1):
+            stripped = line.strip()
+            if "${{ inputs." in line and (
+                stripped.startswith("run:") or not re.match(r"[\w-]+: ", stripped)
+            ):
+                raise AssertionError(f"{tool}/action.yml:{n}: {stripped}")

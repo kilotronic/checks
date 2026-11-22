@@ -189,6 +189,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./lint
 
   lint-refuses:
@@ -197,6 +199,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: action
+          persist-credentials: false
       - name: Make a scratch repository with one finding for each check
         run: |
           mkdir scratch && cd scratch && git init -q
@@ -353,6 +356,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Default mode on this repository's own pull request or push: both scanners, nothing to find.
       - uses: ./secret-scan
       # Range mode: a clean commit passes both scanners; a commit with a token-shaped string is refused.
@@ -383,6 +388,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./secret-scan
         with:
           commits: all
