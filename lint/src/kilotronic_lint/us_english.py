@@ -86,7 +86,9 @@ def _mask(text: str) -> tuple[str, list[str]]:
 
 
 def _unmask(text: str, kept: list[str]) -> str:
-    return re.sub(r"KTKEEP(\d+)KTKEEP\n*", lambda m: kept[int(m.group(1))], text)
+    for i, span in enumerate(kept):
+        text = text.replace(f"KTKEEP{i}KTKEEP" + "\n" * span.count("\n"), span, 1)
+    return text
 
 
 def main(argv: list[str] | None = None) -> int:
