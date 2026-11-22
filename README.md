@@ -51,6 +51,10 @@ One version for the repository: `vX.Y.Z` tags, never moved or deleted, and no mo
 which tools changed. Before this repository, each tool was its own repository (kilotronic/lint and the others);
 their histories are kept here, under each tool's folder.
 
+## Where work is tracked
+
+Known faults and planned work are in [docs/todo.md](docs/todo.md), not GitHub issues.
+
 ## Development
 
 Each tool's tests run from its folder, as its README says; `tests/` at the root checks the layout. CI runs them
