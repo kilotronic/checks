@@ -274,6 +274,16 @@ if ! run us-english && grep -q "The organization's plan." b.md; then pass "us-en
   sed 's/^/     /' b.md "$tmp/log"
 fi
 clean_repo
+printf '# Notes\n\nThe colour of `colour()` and [the colour](https://example.test/colour).\n\n```py\ncolour = 1\n```\n' >b.md
+printf 'colour==0.1.5\n' >requirements.txt
+git add -A
+run us-english || true
+if grep -q 'The color of `colour()` and \[the color\](https://example.test/colour).' b.md && grep -q '^colour = 1$' b.md \
+  && grep -q '^colour==0.1.5$' requirements.txt; then pass "us-english leaves code, links and requirements files as written"; else
+  fail "us-english leaves code, links and requirements files as written"
+  sed 's/^/     /' b.md requirements.txt "$tmp/log"
+fi
+clean_repo
 printf '# prioritise the colour\ncolour = "prioritise"\n' >b.py
 git add -A
 if run us-english && grep -q 'colour = "prioritise"' b.py; then pass "us-english leaves code files alone"; else
@@ -298,7 +308,8 @@ msg() { # msg <text>: run us-english-commit-msg on a commit message holding <tex
   "$RUNNER" try-repo "$HOOKS" us-english-commit-msg --hook-stage commit-msg --commit-msg-filename "$tmp/COMMIT_EDITMSG" >"$tmp/log" 2>&1
 }
 clean_repo
-if ! msg 'docs: prioritise the colour of the logo\n' && grep -q 'prioritise ==> prioritize' "$tmp/log"; then
+if ! msg 'docs: prioritise the colour of the logo\n' && grep -q 'prioritise ==> prioritize' "$tmp/log" \
+  && grep -q 'commit message line 1' "$tmp/log"; then
   pass "us-english-commit-msg refuses a British commit message"
 else
   fail "us-english-commit-msg refuses a British commit message"
