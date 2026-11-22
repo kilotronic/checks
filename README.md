@@ -17,8 +17,8 @@ pins one commit of this repository for all of them.
 Each tool is an Action in its own folder. Pin the release's commit, with its tag in a comment:
 
 ```yaml
-- uses: kilotronic/checks/lint@<commit of the release> # v1.0.0
-- uses: kilotronic/checks/secret-scan@<commit of the release> # v1.0.0
+- uses: kilotronic/checks/lint@<commit of the release> # v1.1.0
+- uses: kilotronic/checks/secret-scan@<commit of the release> # v1.1.0
 ```
 
 ## As pre-commit or prek hooks
@@ -28,7 +28,7 @@ One entry lists the hooks you use, from any of the tools. Every hook id is the o
 ```yaml
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.0.0
+    rev: <commit of the release> # frozen: v1.1.0
     hooks:
       - id: shellcheck
       - id: pinned

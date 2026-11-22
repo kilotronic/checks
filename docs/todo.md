@@ -27,3 +27,19 @@ Two cases in the "skipped: no source changes" rule:
 - A file under `.github/` counts as not source before the caller's `code-paths` input is checked, so a caller
   that names a `.github/` path as code still gets "skipped". The README says `code-paths` decides; check it
   first.
+
+## us-english misses plural possessives
+
+"organisations'" (a plural possessive) is not rewritten. The possessive forms the hook adds to codespell's list
+cover `'s` and `’s` only.
+
+## us-english reports a broken codespell config as a spelling problem
+
+If codespell itself fails (a repository's `.codespellrc` that it can't parse, say), the commit-message hook says
+"write the commit message in American English", which sends the author to the wrong fix. Tell a codespell error
+apart from a finding by its exit code and say what failed.
+
+## us-english refuses a commit message that names a British identifier
+
+A message such as "rename `initialise()` to `initialize()`" is refused, even with the old name in backticks.
+Skip backtick spans in the commit message the way the prose hook skips them in files.

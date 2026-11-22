@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # pin a commit SHA, as the pinned check will tell you
-      - uses: kilotronic/checks/lint@<commit of the release> # v1.0.0
+      - uses: kilotronic/checks/lint@<commit of the release> # v1.1.0
 ```
 
 Linux and macOS runners, x86_64 or arm64.
@@ -69,7 +69,7 @@ your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.0.0
+    rev: <commit of the release> # frozen: v1.1.0
     hooks:
       # format-all: formatters, which rewrite files (first, so the linters see the result)
       - id: ruff-format # Python

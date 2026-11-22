@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@<sha> # pin actions by full commit SHA
         with:
           persist-credentials: false
-      - uses: kilotronic/checks/data-leak-check@<commit of the release> # v1.0.0
+      - uses: kilotronic/checks/data-leak-check@<commit of the release> # v1.1.0
         with:
           denylist: ${{ secrets.DATA_LEAK_DENYLIST }}
 ```
@@ -109,7 +109,7 @@ a repository was not given, cannot quietly pass. Two kinds of runs never get Act
 To let those pass unchecked rather than fail, set `if-empty: skip`. A typical split:
 
 ```yaml
-- uses: kilotronic/checks/data-leak-check@<commit of the release> # v1.0.0
+- uses: kilotronic/checks/data-leak-check@<commit of the release> # v1.1.0
   with:
     denylist: ${{ secrets.DATA_LEAK_DENYLIST }}
     # Fail if the secret is missing on our own branches; let forks and Dependabot through.
@@ -139,7 +139,7 @@ hook per stage:
 default_install_hook_types: [pre-commit, commit-msg, pre-push]
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.0.0
+    rev: <commit of the release> # frozen: v1.1.0
     hooks:
       - id: data-leak-check # pre-commit: staged changes and the commit's identity
       - id: data-leak-check-commit-msg # commit-msg: the message
@@ -168,7 +168,7 @@ with `--no-verify`. With no runner refs, it checks every commit no remote has ye
 ## Use as a CLI
 
 ```bash
-pip install "git+https://github.com/kilotronic/checks.git@v1.0.0#subdirectory=data-leak-check"
+pip install "git+https://github.com/kilotronic/checks.git@v1.1.0#subdirectory=data-leak-check"
 data-leak-check                        # the staged changes (same as --staged)
 data-leak-check --commits main..HEAD   # every commit in a range: authors, messages, content
 data-leak-check --commit-msg .git/COMMIT_EDITMSG
