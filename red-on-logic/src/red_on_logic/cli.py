@@ -10,9 +10,10 @@ lines changed) proves the change when it passes on the head and fails on the bas
 wrong answer: an assertion, or a crash in the code under test. Failing because a module,
 name or argument is missing is red on import, not on logic, and proves nothing.
 
-Exit 0 when at least one judged test proves the change, or when a commit trailer or label
-`red-on-logic: not applicable (<reason>)` skips the check; 1 when none does; 2 when the
-check itself could not run.
+Exit 0 when at least one judged test proves the change, when the pull request changes no
+source file (only docs, config, CI, dependency or metadata files), or when a commit trailer
+or label `red-on-logic: not applicable (<reason>)` skips the check; 1 when none does; 2
+when the check itself could not run.
 """
 
 from __future__ import annotations
@@ -36,6 +37,7 @@ from red_on_logic.runners import RUNNERS, Commands, Group, Outcome, ToolError, d
 from red_on_logic.select import (
     hunk_lines,
     is_code,
+    is_source_change,
     is_test_file,
     js_touched,
     matches_any,
@@ -265,10 +267,12 @@ def check(args: argparse.Namespace) -> Report:
         return Report("skipped", base, head, skip=skip)
 
     extra = tuple(args.test_paths)
+    if args.runner == "command" and not extra:
+        raise ToolError("--runner command needs --test-paths to say which files are tests")
     changes = _changes(root, base, head)
+    if not any(is_source_change(p, extra, tuple(args.code_paths)) for _, p in changes):
+        return Report("no-source", base, head, changes_code=False)
     if args.runner == "command":
-        if not extra:
-            raise ToolError("--runner command needs --test-paths to say which files are tests")
         tests = [p for s, p in changes if s != "D" and matches_any(p, extra)]
     else:
         tests = [p for s, p in changes if s != "D" and is_test_file(p, extra)]
@@ -410,7 +414,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.summary:
         with open(args.summary, "a", encoding="utf-8") as out:
             out.write(render_markdown(report) + "\n")
-    return 0 if report.result in ("proven", "skipped") else 1
+    return 0 if report.result in ("proven", "skipped", "no-source") else 1
 
 
 def entry() -> None:

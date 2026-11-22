@@ -227,3 +227,15 @@ def js_touched(
         valid = start is not None and 0 < start <= len(lines)
         spans.append((start, _js_end(lines, start)) if valid and start else None)
     return _all_or_each(spans, _real(source, changed, JS_NOISE))
+
+
+def is_source_change(path: str, extra: Sequence[str], code_paths: Sequence[str] = ()) -> bool:
+    """A changed file that gives the check something to judge: code, a test, or a source file
+    beside the tests (conftest.py, a helper). Simple path rules, nothing read: docs, config,
+    dependency manifests and lockfiles, licence and metadata files, and everything under
+    .github/ are not source, even when an edit to one (a pyproject.toml) changes behaviour."""
+    if path.startswith(".github/"):
+        return False
+    if is_code(path, extra, code_paths) or is_test_file(path, extra):
+        return True
+    return is_test_side(path, extra) and PurePosixPath(path).suffix.lower() in CODE_EXT

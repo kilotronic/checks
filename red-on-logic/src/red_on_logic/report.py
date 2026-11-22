@@ -29,7 +29,7 @@ class Row:
 
 @dataclass
 class Report:
-    result: str  # proven, not-proven, no-tests, skipped, invalid-skip
+    result: str  # proven, not-proven, no-tests, no-source, skipped, invalid-skip
     base: str = ""
     head: str = ""
     skip: Skip | None = None
@@ -93,6 +93,11 @@ def _headline(report: Report) -> str:
     proven = [r for r in judged if verdict_of(r) == "proven"]
     if report.result == "skipped" and report.skip:
         return f"red-on-logic: skipped by a {report.skip.source}: {report.skip.reason}"
+    if report.result == "no-source":
+        return (
+            "red-on-logic: skipped: no source changes. This pull request changes only docs, config,"
+            " CI, dependency or metadata files, so there is no code for a test to prove."
+        )
     if report.result == "invalid-skip":
         return f"red-on-logic: not proven. {report.note}"
     if report.result == "no-tests" and report.test_files:
@@ -141,7 +146,7 @@ def render_text(report: Report) -> str:
         lines += ["", f"{len(others)} unchanged test(s) in the changed files ran too; not judged."]
     for f in report.unrunnable:
         lines.append(f"No test runner found for {f}: name one with --runner.")
-    if report.result in ("proven", "skipped"):
+    if report.result in ("proven", "skipped", "no-source"):
         return "\n".join(lines)
     seen = {verdict_of(r) for r in judged}
     hints = [HINTS[v] for v in HINTS if v in seen]

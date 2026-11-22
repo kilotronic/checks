@@ -8,6 +8,7 @@ from red_on_logic.classify import js_kind, python_kind
 from red_on_logic.select import (
     hunk_lines,
     is_code,
+    is_source_change,
     is_test_file,
     is_test_side,
     js_touched,
@@ -85,6 +86,40 @@ def test_code_paths_are_always_swapped() -> None:
     assert is_code("queries/get.sql", (), ("queries/*.sql",))
     assert is_code("bin/tool", (), ("bin/*",))
     assert not is_code("tests/data.sql", (), ("*.sql",))
+
+
+@pytest.mark.parametrize(
+    ("path", "want"),
+    [
+        ("src/calc.py", True),
+        ("tests/test_calc.py", True),
+        ("tests/conftest.py", True),
+        ("web/app.test.ts", True),
+        ("README.md", False),
+        ("docs/guide.rst", False),
+        ("CHANGELOG", False),
+        ("LICENSE", False),
+        ("pyproject.toml", False),
+        ("package.json", False),
+        ("package-lock.json", False),
+        ("uv.lock", False),
+        ("renovate.json", False),
+        ("requirements.txt", False),
+        (".pre-commit-config.yaml", False),
+        (".github/workflows/ci.yml", False),
+        (".github/scripts/release.sh", False),
+        ("action.yml", False),
+        ("tests/data/cases.json", False),
+        ("vitest.config.ts", False),
+    ],
+)
+def test_is_source_change(path: str, want: bool) -> None:
+    assert is_source_change(path, ()) is want
+
+
+def test_code_paths_and_test_paths_are_source_changes() -> None:
+    assert is_source_change("queries/get.sql", (), ("queries/*.sql",))
+    assert is_source_change("checks/a.check", ("checks/*.check",))
 
 
 def test_extra_test_paths() -> None:

@@ -8,6 +8,10 @@ on import, not on logic, and proves nothing.
 Nothing failing is ever committed or merged. The check swaps the old code in inside its own job, runs the tests,
 and puts the checkout back; everything in the repository stays green.
 
+**Advisory for now.** Run it, read it, but don't make it a required check anywhere until it has run on about 20 pull
+requests that change code: its rules for which tests count and which failures are red on import are still being
+checked against real pull requests.
+
 ## How it works
 
 1. It finds the files the pull request changed, from the merge base to the head.
@@ -45,6 +49,19 @@ Each judged test gets one verdict:
 
 The check **passes** when at least one judged test proves the change, and **fails** when none does or there are no
 new or changed tests. Exit codes: 0 proven or skipped, 1 not proven, 2 the check could not run.
+
+A pull request that changes **no source file** passes by itself, printing `red-on-logic: skipped: no source
+changes`, so a docs change or a dependency update (Dependabot, Renovate) needs no skip. It goes by path alone,
+nothing is read:
+
+- source: code (by extension: `.py`, `.ts`, `.go`, `.sh`, ...), test files, source files beside the tests
+  (`conftest.py`, helpers), and whatever the `code-paths` and `test-paths` inputs name;
+- not source: docs (`*.md`, ...), config and dot files, dependency manifests and lockfiles (`pyproject.toml`,
+  `package.json`, `package-lock.json`, `uv.lock`, `requirements*.txt`, `renovate.json`), licence and metadata
+  files, test data, and everything under `.github/`.
+
+So an edit to a config file that changes behaviour (a dependency's version in `pyproject.toml`) also passes
+without a test; telling a version bump from a behaviour change in such a file is not attempted.
 
 ### Examples
 
@@ -102,7 +119,7 @@ request, or skip the check with a reason.
 
 ## Skipping it, with a reason
 
-A pure refactor, a test-only or a docs-only pull request has nothing to prove. Say so on a line of its own, not
+A pure refactor or a test-only pull request has nothing to prove (a docs-only one is skipped by itself, above). Say so on a line of its own, not
 indented, in any commit message (a trailer), or as a label:
 
 ```text

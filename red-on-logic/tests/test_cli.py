@@ -61,6 +61,44 @@ def test_a_skip_without_a_reason_is_refused(planted: Planted) -> None:
     assert "needs a reason" in text
 
 
+@pytest.mark.parametrize(
+    "changed",
+    [
+        ["README.md", "docs/guide.md"],
+        ["package.json", "package-lock.json", "renovate.json"],
+        ["pyproject.toml", "uv.lock"],
+        [".github/workflows/ci.yml", ".github/dependabot.yml"],
+        ["LICENSE"],
+    ],
+)
+def test_no_source_changes_skips_and_passes(planted: Planted, changed: list[str]) -> None:
+    planted.write("calc.py", "x = 1\n")
+    for path in changed:
+        planted.write(path, "a\n")
+    planted.base()
+    for path in changed:
+        planted.write(path, "b\n")
+    planted.commit("chore: update")
+
+    code, report, text = planted.run("--pytest", PYTEST)
+
+    assert code == 0
+    assert report["result"] == "no-source"
+    assert text.splitlines()[0].startswith("red-on-logic: skipped: no source changes")
+
+
+def test_a_deleted_source_file_is_a_source_change(planted: Planted) -> None:
+    planted.write("calc.py", "x = 1\n")
+    planted.base()
+    planted.delete("calc.py")
+    planted.commit("refactor: drop calc")
+
+    code, report, _ = planted.run("--pytest", PYTEST)
+
+    assert code == 1
+    assert report["result"] == "no-tests"
+
+
 def test_no_changed_tests_fails_and_says_how_to_skip(planted: Planted) -> None:
     planted.write("calc.py", "x = 1\n")
     planted.base()
