@@ -116,14 +116,14 @@
   description: codespell's British-to-American list only, on Markdown, plain text and reStructuredText; code is left alone. A repository's own codespell config (.codespellrc, setup.cfg or pyproject's [tool.codespell]) adds words to ignore.
   entry: kilotronic-us-english
   language: python
-  additional_dependencies: ['codespell[toml]==2.4.3']
+  additional_dependencies: ["codespell[toml]==2.4.3"]
   files: (?i)\.(md|markdown|txt|rst)$
 - id: us-english-commit-msg
   name: us-english (no British spellings in the commit message)
   description: The same check on the commit message; it reports and leaves the message as written.
   entry: kilotronic-us-english-commit-msg
   language: python
-  additional_dependencies: ['codespell[toml]==2.4.3']
+  additional_dependencies: ["codespell[toml]==2.4.3"]
   stages: [commit-msg]
 - id: csv-lint
   name: csv-lint (UTF-8, same columns in every row, a final newline; never rewritten)

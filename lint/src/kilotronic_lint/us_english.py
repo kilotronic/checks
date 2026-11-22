@@ -13,12 +13,13 @@ import tempfile
 from pathlib import Path
 
 
-
 def british_list() -> Path:
     # Imported here: the hook's environment has codespell (its additional dependency); lint's own does not.
     import codespell_lib
 
-    return Path(codespell_lib.__file__).parent / "data" / "dictionary_en-GB_to_en-US.txt"
+    return (
+        Path(codespell_lib.__file__).parent / "data" / "dictionary_en-GB_to_en-US.txt"
+    )
 
 
 def possessives(entries: str) -> str:
@@ -26,19 +27,36 @@ def possessives(entries: str) -> str:
     out = []
     for line in entries.splitlines():
         word, sep, fix = line.partition("->")
-        if not sep or "," in fix:  # an entry with several fixes or a reason is left to the builtin list
+        if (
+            not sep or "," in fix
+        ):  # an entry with several fixes or a reason is left to the builtin list
             continue
         for mark in ("'", "’"):
             out.append(f"{word}{mark}s->{fix}{mark}s")
     return "\n".join(out) + "\n"
 
 
-def codespell(args: list[str], stdin: str | None = None) -> subprocess.CompletedProcess[str]:
-    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as extra:
+def codespell(
+    args: list[str], stdin: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".txt", delete=False, encoding="utf-8"
+    ) as extra:
         extra.write(possessives(british_list().read_text(encoding="utf-8")))
     try:
-        cmd = ["codespell", "--builtin", "en-GB_to_en-US", "-D", "-", "-D", extra.name, *args]
-        return subprocess.run(cmd, input=stdin, capture_output=stdin is not None, text=True, check=False)
+        cmd = [
+            "codespell",
+            "--builtin",
+            "en-GB_to_en-US",
+            "-D",
+            "-",
+            "-D",
+            extra.name,
+            *args,
+        ]
+        return subprocess.run(
+            cmd, input=stdin, capture_output=stdin is not None, text=True, check=False
+        )
     finally:
         Path(extra.name).unlink()
 
@@ -53,7 +71,10 @@ def commit_msg_main(argv: list[str] | None = None) -> int:
     """The commit message: report British spellings, leave the message as written."""
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 1:
-        print("usage: kilotronic-us-english-commit-msg <commit message file>", file=sys.stderr)
+        print(
+            "usage: kilotronic-us-english-commit-msg <commit message file>",
+            file=sys.stderr,
+        )
         return 2
     # git-identity's cleanup, the same one its commit-msg hook uses; the hooks install every tool together.
     from git_identity.commit_msg import cleaned
@@ -65,6 +86,8 @@ def commit_msg_main(argv: list[str] | None = None) -> int:
     if out.returncode:
         if not report:
             sys.stderr.write(out.stderr)
-        print("us-english: write the commit message in American English, then commit again.")
+        print(
+            "us-english: write the commit message in American English, then commit again."
+        )
         return 1
     return 0
