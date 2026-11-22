@@ -127,7 +127,9 @@ def _action(tree: Path, **inputs: str) -> subprocess.CompletedProcess:
     values = {"root-dir": str(tree), "manifest": "vendored-assets.toml", "roots": ""}
     values.update({"allow": "", "deny": "", **inputs})
     # The inputs reach the script through the step's env:, as GitHub fills it in.
-    passed = re.findall(r"^\s+(\w+): \$\{\{ inputs\.([a-z-]+) \}\}$", step, re.MULTILINE)
+    passed = re.findall(
+        r"^\s+(\w+): \$\{\{ inputs\.([a-z-]+) \}\}$", step, re.MULTILINE
+    )
     assert "${{" not in script, "an input is written into the script"
     env = dict(
         os.environ, GITHUB_ACTION_PATH=str(ROOT), **{k: values[v] for k, v in passed}
