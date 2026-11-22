@@ -16,6 +16,11 @@ these hold, so a commit that merely claims a bot's email is still judged:
   is the merge commit of a merged pull request the bot opened from its branch
   (needs a token with ``pull-requests: read``).
 
+An agents' GitHub App opens pull requests from any branch and squash-merges
+them, and the squash commit is authored by the App. ``kilotronic-agents`` is
+known by name; any other App is named by its bot user, ``<app>[bot]``, and its
+commits must carry its noreply address (``<id>+<app>[bot]@users.noreply.github.com``).
+
 Anything else, or any error on the way (git, GitHub's API), means the normal
 author check runs. Exit status: 0 = a listed bot's own update, 1 = not.
 """
@@ -38,9 +43,15 @@ GITHUB_COMMITTER = "noreply@github.com"
 @dataclass(frozen=True)
 class Bot:
     login: str  # the GitHub App's bot user
-    email: str  # its commits' author email
-    branch: str  # the prefix of the branches it opens pull requests from
+    email: str  # its commits' author email; "" for any id: <id>+<login>@users.noreply.github.com
+    branch: str  # the prefix of the branches it opens pull requests from ("" for any)
     committer: str = GITHUB_COMMITTER  # both commit through GitHub's API
+
+    def authored(self, email: str) -> bool:
+        if self.email:
+            return email.lower() == self.email.lower()
+        noreply = rf"\d+\+{re.escape(self.login)}@users\.noreply\.github\.com"
+        return re.fullmatch(noreply, email, re.IGNORECASE) is not None
 
 
 BOTS = {
@@ -54,7 +65,25 @@ BOTS = {
         "29139614+renovate[bot]@users.noreply.github.com",
         "renovate/",
     ),
+    "kilotronic-agents": Bot(
+        "kilotronic-agents[bot]",
+        "359638748+kilotronic-agents[bot]@users.noreply.github.com",
+        "",
+    ),
 }
+# Allowed with no allow-bots input; the input adds to them, and `none` turns them off.
+DEFAULT_BOTS = ("dependabot", "renovate", "kilotronic-agents")
+APP_BOT = re.compile(r"[a-z0-9][a-z0-9-]*\[bot\]")
+
+
+def bot_named(name: str) -> Bot | None:
+    """A known bot, or any GitHub App named by its bot user (``<app>[bot]``)."""
+    if name in BOTS:
+        return BOTS[name]
+    if APP_BOT.fullmatch(name):
+        return Bot(name, "", "")
+    return None
+
 
 GitLog = Callable[[str], tuple[int, str, str]]
 PullsOf = Callable[[str], list[dict]]
@@ -96,9 +125,7 @@ def own_update(
         return False
     commits = [line.split("\0") for line in out.splitlines() if line]
     if not commits or any(
-        len(c) != 3
-        or c[1].lower() != bot.email.lower()
-        or c[2].lower() != bot.committer
+        len(c) != 3 or not bot.authored(c[1]) or c[2].lower() != bot.committer
         for c in commits
     ):
         return False
@@ -123,11 +150,12 @@ def _merged_by(bot: Bot, sha: str, pulls: list[dict]) -> bool:
 def which_bot(names: Sequence[str], **context) -> str | None:
     """The first of ``names`` whose own update this is, or None."""
     for name in names:
-        bot = BOTS.get(name)
+        bot = bot_named(name)
         if bot is None:
             known = ", ".join(BOTS)
             print(
-                f"::warning::git-identity: unknown bot {name!r} in allow-bots (known: {known})"
+                f"::warning::git-identity: unknown bot {name!r} in allow-bots (known: {known},"
+                " or a GitHub App's bot user, <app>[bot])"
             )
             continue
         if own_update(bot, **context):
@@ -163,12 +191,18 @@ def main(
 ) -> int:
     parser = argparse.ArgumentParser(prog="git-identity-bots")
     parser.add_argument(
-        "--bots", default="", help="bot names, e.g. 'dependabot, renovate'"
+        "--bots",
+        default="",
+        help=f"more bots besides {', '.join(DEFAULT_BOTS)}, e.g. 'acme-agents[bot]';"
+        " 'none' drops those",
     )
     parser.add_argument("--range", required=True, help="the event's commits")
     args = parser.parse_args(argv)
     env = os.environ if environ is None else environ
-    names = [n.lower() for n in re.split(r"[,\s]+", args.bots) if n]
+    given = [n.lower() for n in re.split(r"[,\s]+", args.bots) if n]
+    names = [n for n in given if n != "none"]
+    if "none" not in given:
+        names = [*DEFAULT_BOTS, *(n for n in names if n not in DEFAULT_BOTS)]
     bot = which_bot(
         names,
         event=env.get("EVENT", ""),
@@ -180,7 +214,7 @@ def main(
         pulls_of=pulls_of or github_pulls_of(env),
     )
     if bot is None:
-        if names:
+        if given:
             print("git identity: not an allowed bot's own update; checking the authors")
         return 1
     print(f"git identity: {bot}'s own update; the author check is skipped")

@@ -212,14 +212,42 @@ def test_main_exits_0_for_an_allowed_bots_update(bots, capsys) -> None:
     assert "dependabot's own update" in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("bots", ["", "renovate"])
-def test_main_exits_1_otherwise(bots) -> None:
+@pytest.mark.parametrize("bots", ["", "acme-agents[bot]"])
+def test_the_known_bots_are_allowed_by_default(bots, capsys) -> None:
+    rc = main(
+        ["--bots", bots, "--range", "x..y"],
+        environ=_ENV,
+        git_log=_log((SHA_A, DEPENDABOT.email, GITHUB)),
+    )
+    assert rc == 0
+    assert "dependabot's own update" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("bots", ["none", "none, renovate", "none acme-agents[bot]"])
+def test_none_turns_the_default_bots_off(bots) -> None:
     rc = main(
         ["--bots", bots, "--range", "x..y"],
         environ=_ENV,
         git_log=_log((SHA_A, DEPENDABOT.email, GITHUB)),
     )
     assert rc == 1
+
+
+def test_a_listed_app_adds_to_the_default_bots() -> None:
+    env = {**_ENV, "EVENT": "push", "PR_USER": "", "HEAD_REF": "", "ACTOR": "x"}
+    pr = {
+        "merged_at": "2026-01-01T00:00:00Z",
+        "merge_commit_sha": SHA_A,
+        "user": {"login": "acme-agents[bot]"},
+        "head": {"ref": "fix/thing"},
+    }
+    args = ["--range", "x..y"]
+    log = _log((SHA_A, "7+acme-agents[bot]@users.noreply.github.com", GITHUB))
+    got = lambda bots: main(
+        ["--bots", bots, *args], environ=env, git_log=log, pulls_of=lambda _s: [pr]
+    )
+    assert got("acme-agents[bot]") == 0
+    assert got("") == 1
 
 
 # --- end to end: action.sh with a real repository --------------------------
@@ -310,10 +338,18 @@ def test_action_skips_the_author_check_for_the_bots_pull_request(repo) -> None:
     assert "dependabot's own update" in run.stdout
 
 
-def test_action_without_allow_bots_refuses_the_bot(repo) -> None:
+def test_action_without_allow_bots_lets_the_default_bots_through(repo) -> None:
     clone, base, commit = repo
     head = commit(DEPENDABOT.email)
     run = _action(clone, base, head, ALLOW_BOTS="")
+    assert run.returncode == 0, run.stderr
+    assert "dependabot's own update" in run.stdout
+
+
+def test_action_with_allow_bots_none_refuses_the_bot(repo) -> None:
+    clone, base, commit = repo
+    head = commit(DEPENDABOT.email)
+    run = _action(clone, base, head, ALLOW_BOTS="none")
     assert run.returncode == 1
     assert "not in domain 'ixid.net'" in run.stderr
 
@@ -340,3 +376,92 @@ def test_action_still_passes_a_good_email_with_allow_bots(repo) -> None:
     run = _action(clone, base, head, PR_USER="ada", ACTOR="ada", HEAD_REF="feature")
     assert run.returncode == 0, run.stderr
     assert "1 commit(s)" in run.stdout
+
+
+# --- the agents' GitHub App: its squash merges on the default branch --------
+
+AGENTS = BOTS["kilotronic-agents"]
+AGENTS_EMAIL = "359638748+kilotronic-agents[bot]@users.noreply.github.com"
+
+
+def _agents_push(email=AGENTS_EMAIL, opener="kilotronic-agents[bot]", **over):
+    pr = _pr(SHA_A, AGENTS, user={"login": opener}, head={"ref": "feat/any-branch"})
+    ctx = {
+        "git_log": _log((SHA_A, email, GITHUB)),
+        "pulls_of": lambda _sha: [pr],
+        **over,
+    }
+    return _push(AGENTS, **ctx)
+
+
+def test_the_agents_app_is_known_with_any_branch() -> None:
+    assert AGENTS.login == "kilotronic-agents[bot]"
+    assert AGENTS.email == AGENTS_EMAIL
+    assert AGENTS.branch == ""
+
+
+def test_the_agents_apps_squash_merge_is_exempt() -> None:
+    assert own_update(AGENTS, **_agents_push())
+    assert which_bot(["kilotronic-agents"], **_agents_push()) == "kilotronic-agents"
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        "kilotronic-agents[bot]@users.noreply.github.com",  # no id
+        "1+kilotronic-agents[bot]@users.noreply.github.com",  # another id
+        "359638748+kilotronic-agents@users.noreply.github.com",  # not the bot user
+        "359638748+kilotronic-agents[bot]@users.noreply.github.com.evil.example",
+        "mallory@example.org",
+    ],
+)
+def test_a_look_alike_of_the_agents_app_is_not_exempt(email) -> None:
+    assert not own_update(AGENTS, **_agents_push(email=email))
+
+
+def test_an_agents_app_commit_not_from_its_own_pull_request_is_not_exempt() -> None:
+    assert not own_update(AGENTS, **_agents_push(opener="mallory"))
+    assert not own_update(AGENTS, **_agents_push(pulls_of=lambda _sha: []))
+
+
+# --- any other GitHub App, named by its bot user ---------------------------
+
+ACME = "acme-agents[bot]"
+
+
+def _app_push(email, opener=ACME):
+    pr = {
+        "merged_at": "2026-01-01T00:00:00Z",
+        "merge_commit_sha": SHA_A,
+        "user": {"login": opener},
+        "head": {"ref": "fix/thing"},
+    }
+    return _push(git_log=_log((SHA_A, email, GITHUB)), pulls_of=lambda _sha: [pr])
+
+
+def test_an_app_named_by_its_bot_user_is_exempt_on_its_own_merge() -> None:
+    ctx = _app_push("12345+acme-agents[bot]@users.noreply.github.com")
+    assert which_bot([ACME], **ctx) == ACME
+
+
+@pytest.mark.parametrize(
+    ("email", "opener"),
+    [
+        ("12345+acme-agents@users.noreply.github.com", ACME),  # not the bot user
+        ("acme-agents[bot]@users.noreply.github.com", ACME),  # no id
+        ("x+acme-agents[bot]@users.noreply.github.com", ACME),  # not an id
+        ("12345+acme-agents[bot]@users.noreply.github.com", "mallory"),  # not its PR
+    ],
+)
+def test_a_look_alike_of_a_named_app_is_not_exempt(email, opener) -> None:
+    assert which_bot([ACME], **_app_push(email, opener)) is None
+
+
+def test_a_name_without_bot_is_still_unknown(capsys) -> None:
+    assert (
+        which_bot(
+            ["acme-agents"], **_app_push("1+acme-agents[bot]@users.noreply.github.com")
+        )
+        is None
+    )
+    assert "unknown bot" in capsys.readouterr().out

@@ -23,8 +23,8 @@ It also checks **commit messages**, over the same commits in CI and as `commit-m
 - **session-trailer** (always on): in a **public** repository, no `Claude-Session` trailer line in any commit,
   merge commits included, which links a private agent session. A private repository passes.
 
-The message checks run on pull request and push events, over the commits the author check reads. A dependency
-bot's own update that `allow-bots` lets through skips them too; other events (and `commits: identity`) check
+The message checks run on pull request and push events, over the commits the author check reads. An allowed
+bot's own update (see below) skips them too; other events (and `commits: identity`) check
 only the runner's identity.
 
 It ships as a **GitHub Action**, which checks the commits in a pull request or push, **prek / pre-commit
@@ -72,17 +72,20 @@ Inputs:
 | ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `domains`        | empty (any)                  | Allowed email domains, separated by commas, spaces or newlines                                                                                                |
 | `commits`        | empty (this event's commits) | A git range such as `main..HEAD`, or `identity` to check the identity git would stamp on the runner (the v1 behavior)                                         |
-| `allow-bots`     | empty (nobody)               | Dependency bots whose own updates skip the check: `dependabot`, `renovate` (see below)                                                                        |
+| `allow-bots`     | empty (the default bots)     | More bots whose own updates skip the check, such as your organisation's agent App (`<app>[bot]`); `none` turns the default bots off (see below)               |
 | `commit-subject` | `false`                      | `true` also checks each commit's subject (see above)                                                                                                          |
 | `commit-types`   | empty (the default list)     | The types `commit-subject` allows, separated by commas or spaces                                                                                              |
 | `skip`           | empty                        | Checks to skip, by id: only `commit-subject`. The author check and the session trailer check are the floor: naming one warns and it runs; an unknown id fails |
 | `token`          | `github.token`               | Used only with `allow-bots`, to ask GitHub which pull request a pushed commit merged                                                                          |
 | `domain`         | empty                        | Deprecated v1 alias; it is combined with `domains`                                                                                                            |
 
-### Dependency bots (opt-in)
+### Bots
 
 Dependabot and Renovate author their commits as their GitHub noreply address, which no domain list
-contains, so with `domains` set their pull requests fail. `allow-bots` lets a bot's own update through:
+contains, and an agents' GitHub App that squash-merges its own pull requests authors the squash commit. So
+with `domains` set their updates would fail. A bot's own update gets through instead: `dependabot`,
+`renovate` and `kilotronic-agents` always (unless `allow-bots: none`), and any other App you name by its bot
+user in `allow-bots`, such as your organisation's agent App:
 
 ```yaml
 permissions:
@@ -93,24 +96,27 @@ steps:
   - uses: kilotronic/checks/git-identity@<commit of the release> # v1.0.0
     with:
       domains: ixid.net
-      allow-bots: dependabot, renovate
+      allow-bots: acme-agents[bot] # optional: an App besides the default bots
 ```
 
 The check is skipped only when everything below holds; otherwise, or on any error (git, GitHub's API),
 the normal author check runs. A commit that only uses a bot's email is still refused.
 
-- **Pull request:** opened by the bot from its branch (`dependabot/…` or `renovate/…`), this run started
+- **Pull request:** opened by the bot (a dependency bot from its branch, `dependabot/…` or `renovate/…`;
+  an App from any branch), this run started
   by the bot, and every new non-merge commit authored by the bot's address and committed by GitHub
   (`noreply@github.com`).
 - **Push** (the merge on the default branch): every new non-merge commit authored by the bot's address and
   committed by GitHub, and GitHub links it as the merge commit of a merged pull request the bot opened
-  from its branch. This is a squash merge; a merge commit or rebase merge of a bot's pull request is
+  (from its branch, for a dependency bot). This is a squash merge; a merge commit or rebase merge of a bot's pull request is
   checked as usual.
 
-| Bot          | Login                            | Author email                                        | Branch prefix |
-| ------------ | -------------------------------- | --------------------------------------------------- | ------------- |
-| `dependabot` | `dependabot[bot]`                | `49699333+dependabot[bot]@users.noreply.github.com` | `dependabot/` |
-| `renovate`   | `renovate[bot]` (the GitHub App) | `29139614+renovate[bot]@users.noreply.github.com`   | `renovate/`   |
+| Bot                 | Login                                      | Author email                                                | Branch prefix |
+| ------------------- | ------------------------------------------ | ----------------------------------------------------------- | ------------- |
+| `dependabot`        | `dependabot[bot]`                          | `49699333+dependabot[bot]@users.noreply.github.com`         | `dependabot/` |
+| `renovate`          | `renovate[bot]` (the GitHub App)           | `29139614+renovate[bot]@users.noreply.github.com`           | `renovate/`   |
+| `kilotronic-agents` | `kilotronic-agents[bot]` (the agents' App) | `359638748+kilotronic-agents[bot]@users.noreply.github.com` | any           |
+| `<app>[bot]`        | `<app>[bot]` (any GitHub App)              | `<id>+<app>[bot]@users.noreply.github.com`                  | any           |
 
 Renovate must use its default `branchPrefix` and commit through the GitHub App (its default), so GitHub
 is the committer. `allow-bots` applies only to the event's own commits, not to an explicit `commits`
