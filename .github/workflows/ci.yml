@@ -585,8 +585,14 @@ jobs:
         with:
           node-version: 24
       - run: npm ci --ignore-scripts --prefix red-on-logic/tests/js
+      # red-on-logic's own tests run in its folder's environment; every other tool's, in one at the root
+      # (pytest uses the nearest .venv: the test's folder, then the root).
       - run: uv sync --frozen
         working-directory: red-on-logic
+      - run: |
+          uv venv -q .venv
+          uv pip install -q --python .venv pytest==8.4.2 -e ./lint -e ./git-identity -e ./data-leak-check \
+            -e ./vendored-license-check
       - uses: ./red-on-logic
 
   ci:
