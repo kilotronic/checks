@@ -75,19 +75,23 @@ CODE = re.compile(
 )
 
 
+# Not a word character, so a placeholder never joins the word next to it.
+MARK = "\u2063"
+
+
 def _mask(text: str) -> tuple[str, list[str]]:
     kept: list[str] = []
 
     def hold(m: re.Match[str]) -> str:
         kept.append(m.group(0))
-        return f"KTKEEP{len(kept) - 1}KTKEEP" + "\n" * m.group(0).count("\n")
+        return f"{MARK}{len(kept) - 1}{MARK}" + "\n" * m.group(0).count("\n")
 
     return CODE.sub(hold, text), kept
 
 
 def _unmask(text: str, kept: list[str]) -> str:
     for i, span in enumerate(kept):
-        text = text.replace(f"KTKEEP{i}KTKEEP" + "\n" * span.count("\n"), span, 1)
+        text = text.replace(f"{MARK}{i}{MARK}" + "\n" * span.count("\n"), span, 1)
     return text
 
 
