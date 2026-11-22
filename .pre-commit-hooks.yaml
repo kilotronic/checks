@@ -1,6 +1,11 @@
+# Hooks for pre-commit and prek: every check tool's hooks, from one repository. List the ids you use under one
+# `repo: https://github.com/kilotronic/checks` entry. Each tool's hooks sit under its own `# === <tool>` heading;
+# an id never changes and never repeats across tools.
+
+# === lint
 # Hooks for pre-commit and prek.
 #
-# shellcheck, actionlint, pinned, workflow-safety and non-root run the Action's own src/lint.sh step on the
+# shellcheck, actionlint, pinned, workflow-safety and non-root run the Action's own lint/src/lint.sh step on the
 # repository's tracked files, with the same pinned, checksum-checked shellcheck and actionlint (cached under
 # ~/.cache).
 #
@@ -14,7 +19,7 @@
 - id: shellcheck
   name: shellcheck (shell scripts)
   description: shellcheck every tracked shell script (*.sh, *.bash, or a sh/bash shebang).
-  entry: src/lint.sh hook shellcheck
+  entry: lint/src/lint.sh hook shellcheck
   language: script
   pass_filenames: false
   types: [shell]
@@ -22,7 +27,7 @@
 - id: actionlint
   name: actionlint (workflows)
   description: actionlint every workflow in .github/workflows, with their run scripts through shellcheck.
-  entry: src/lint.sh hook actionlint
+  entry: lint/src/lint.sh hook actionlint
   language: script
   pass_filenames: false
   files: ^\.github/(workflows/.*\.ya?ml|actionlint\.ya?ml)$
@@ -32,7 +37,7 @@
   description: >-
     Every action is pinned to a commit SHA, every Docker base image to a digest, every pre-commit rev to a commit
     SHA with a "# frozen: <tag>" comment, and no download is piped into a shell.
-  entry: src/lint.sh hook pinned
+  entry: lint/src/lint.sh hook pinned
   language: script
   pass_filenames: false
   files: (^\.github/workflows/.*\.ya?ml$|(^|/)action\.ya?ml$|Dockerfile|(^|/)\.pre-commit-config\.ya?ml$|\.(sh|bash|mk)$|(^|/)(GNU)?[Mm]akefile$)
@@ -42,7 +47,7 @@
   description: >-
     Read-only top-level permissions; no pull request code beside secrets; no secret or event text in run:
     scripts; GitHub's runners for a public repository's pull requests; no skip or force inputs.
-  entry: src/lint.sh hook workflow-safety
+  entry: lint/src/lint.sh hook workflow-safety
   language: script
   pass_filenames: false
   files: (^\.github/workflows/.*\.ya?ml$|(^|/)action\.ya?ml$)
@@ -50,7 +55,7 @@
 - id: non-root
   name: non-root (containers run as a non-root user)
   description: Every Dockerfile's final stage runs as a user other than root (args [--skip=non-root] skips it).
-  entry: src/lint.sh hook non-root
+  entry: lint/src/lint.sh hook non-root
   language: script
   pass_filenames: false
   files: Dockerfile
@@ -160,3 +165,90 @@
   language: python
   additional_dependencies: [pre-commit-hooks==6.0.0]
   types: [text]
+
+# === git-identity
+- id: git-identity
+  name: Real git author identity
+  description: Refuse placeholder and machine-default git identities, and optionally emails outside a list of domains (--domain=a.com,b.com).
+  entry: check-git-identity
+  language: python
+  always_run: true
+  pass_filenames: false
+  stages: [pre-commit, pre-merge-commit, manual]
+- id: commit-subject
+  name: "Commit subject reads <type>: <imperative summary>"
+  description: >-
+    The subject is `<type>: <imperative summary>` with a type from --types (default feat, fix, refactor, perf, test,
+    docs, build, ci, chore, style, revert); --require-body also wants a paragraph saying why. Opt-in: list the hook to use it.
+  entry: check-commit-subject
+  language: python
+  stages: [commit-msg]
+- id: session-trailer
+  name: No Claude-Session trailer in a public repository
+  description: >-
+    Refuse a commit message with a Claude-Session line when the repository is public (asked of gh once a day and
+    cached in the clone); a private repository, or an unknown visibility (offline), passes.
+  entry: check-session-trailer
+  language: python
+  stages: [commit-msg]
+
+# === secret-scan
+# Hooks for pre-commit and prek. They run the same secret-scan/src/scan.sh and the same pinned, checksum-checked
+# gitleaks as the Action, cached under ~/.cache/kilotronic-secret-scan. A .gitleaks.toml at the root of
+# your repository is used. trufflehog is Action-only: it needs Docker and calls each key's service.
+- id: secret-scan
+  name: secret-scan (gitleaks, staged changes)
+  description: Refuse a commit whose staged changes contain anything shaped like a secret.
+  entry: secret-scan/src/scan.sh staged
+  language: script
+  pass_filenames: false
+  stages: [pre-commit, pre-merge-commit, manual]
+- id: secret-scan-push
+  name: secret-scan (gitleaks, commits being pushed)
+  description: Refuse a push whose new commits contain anything shaped like a secret.
+  entry: secret-scan/src/scan.sh push
+  language: script
+  pass_filenames: false
+  always_run: true
+  stages: [pre-push]
+
+# === data-leak-check
+# Three hooks, one per git stage. Install the stages you use, e.g. `prek install -t pre-commit -t commit-msg
+# -t pre-push`, or set `default_install_hook_types` in your config. The denylist comes from outside the
+# repository: --denylist-file, $DATA_LEAK_DENYLIST, $DATA_LEAK_DENYLIST_FILE or ~/.config/data-leak-check/denylist.
+- id: data-leak-check
+  name: No private data in the staged changes
+  description: Refuse denylisted terms in staged added lines, new file paths, and the commit's author and committer.
+  entry: data-leak-check --staged
+  language: python
+  stages: [pre-commit]
+  always_run: true
+  pass_filenames: false
+- id: data-leak-check-commit-msg
+  name: No private data in the commit message
+  description: Refuse denylisted terms in the commit message.
+  entry: data-leak-check --commit-msg
+  language: python
+  stages: [commit-msg]
+  always_run: true
+- id: data-leak-check-pre-push
+  name: No private data in the commits being pushed
+  description: Refuse denylisted terms in the pushed commits' added lines, paths, messages, authors and committers.
+  entry: data-leak-check --pre-push
+  language: python
+  stages: [pre-push]
+  always_run: true
+  pass_filenames: false
+
+# === vendored-license-check
+- id: vendored-license-check
+  name: Vendored asset license compliance
+  description: Enforce that every vendored asset file is declared with an allow-listed SPDX license.
+  entry: vendored-license-check
+  language: python
+  pass_filenames: false
+  stages: [pre-commit, pre-merge-commit, manual]
+  # The gate walks the configured roots itself, so it does not consume the
+  # changed-file list. Scope *when* it runs by setting `files:` in your own
+  # .pre-commit-config.yaml, e.g.:
+  #   files: '^(vendor/.*|assets/fonts/.*|vendored-assets\.toml)$'

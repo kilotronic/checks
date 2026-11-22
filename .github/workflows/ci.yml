@@ -1,0 +1,627 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------------------------------------------
+  # Gates: this repository's own commits and files, through the released tools (a pull request can't weaken the
+  # check that judges it).
+
+  # Refuse the organisation's private terms (the DATA_LEAK_DENYLIST secret) in this event's commits:
+  # added lines, file paths, commit messages and authors.
+  data-leak-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: kilotronic/data-leak-check@f1da8a7ce76bfaabd70ea815d9417fb691e95799 # v1.1.0
+        with:
+          denylist: ${{ secrets.DATA_LEAK_DENYLIST }}
+
+  # Secrets in this event's commits: gitleaks (anything shaped like a secret) and trufflehog (keys that still work).
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: kilotronic/secret-scan@2665d6f2f0260d3ae0defbedcce27fc63ad6a168 # v1.2.1
+
+  # Shell scripts (shellcheck), workflows (actionlint), actions and base images pinned by commit and digest, and
+  # safe workflows; then secret-scan's own pin rule.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: kilotronic/lint@56a43d45e7b4479bba97c79404a4dc7671bd9796 # v1.3.2
+      # The trufflehog action (bumped by Dependabot) and the image it runs must be the same version.
+      - name: trufflehog image matches the trufflehog action
+        run: |
+          action=$(grep -oE 'trufflehog@[0-9a-f]+ # v[0-9.]+' secret-scan/action.yml | sed 's/.*# v//')
+          image=$(awk '/trufflehog-version:/{f=1} f && /default:/{gsub(/[" ]/,"",$2); print $2; exit}' secret-scan/action.yml)
+          echo "action=$action image=$image"
+          test -n "$action" && test "$action" = "$image"
+
+  # Real authors on this event's commits, in the owner's domains.
+  git-identity:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # allow-bots on a push asks which pull request a commit merged
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: kilotronic/git-identity@b0d54e809d81cabf61d357cbe519a9b9263b17cb # v2.4.0
+        with:
+          domains: ixid.net, kilotronic.com
+          allow-bots: dependabot
+          commit-subject: true
+
+  # The format and lint bundle from .pre-commit-config.yaml (formatters, ruff, markdownlint, yamllint, ...), the
+  # same hooks a commit runs. The identity, secret and private-term hooks run as their own jobs.
+  prek:
+    name: Format and lint (prek)
+    runs-on: ubuntu-latest
+    env:
+      SKIP: git-identity,commit-subject,session-trailer,secret-scan,secret-scan-push,data-leak-check,data-leak-check-commit-msg,data-leak-check-pre-push
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: pipx run prek==0.5.11 run --all-files --show-diff-on-failure
+
+  # The layout: one folder per tool, one hook manifest with unique ids, one package for the Python hooks.
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: pip install pytest==8.4.2
+      - run: python -m pytest -q tests
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # Each tool's own tests, from its folder.
+
+  # git-identity, data-leak-check and vendored-license-check: ruff and the unit tests. data-leak-check's
+  # end-to-end hook tests need prek and pre-commit; without them they skip.
+  python-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [git-identity, data-leak-check, vendored-license-check]
+        python-version: ["3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: ${{ matrix.tool }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]" prek==0.5.11 pre-commit
+      - run: ruff check .
+      - run: pytest -q -rs
+
+  # red-on-logic: ruff, pyright (strict) and the tests, the planted examples for every runner among them.
+  red-on-logic-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.14"]
+    defaults:
+      run:
+        working-directory: red-on-logic
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      # The planted vitest, jest and node:test examples run under these.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts --prefix tests/js
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pyright
+      - run: uv run pytest
+
+  # lint/src/lint.sh in throwaway repositories: what each check refuses and allows, the verdict, the hooks, and
+  # the download checksums.
+  lint-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: bash lint/test/test.sh
+
+  # The format and lint bundle's hooks through prek: a clean sample of every file type passes, each hook refuses
+  # its planted defect, and no hook rewrites a CSV file. Then csv-lint's own unit tests.
+  lint-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: pip install prek==0.5.11 pytest==8.4.2
+      - run: bash lint/test/bundle.sh
+      - run: python -m pytest -q test/test_csv_lint.py
+        working-directory: lint
+
+  # secret-scan/src/scan.sh against throwaway repositories: each event's range, the verdict, the hooks, the
+  # checksum.
+  secret-scan-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: bash secret-scan/tests/test.sh
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # Each Action from this checkout: it passes this repository and refuses what it is there to refuse. The bad
+  # commits and files are made at run time, so they are never in this repository's history.
+
+  lint-dogfood:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./lint
+
+  lint-refuses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: action
+      - name: Make a scratch repository with one finding for each check
+        run: |
+          mkdir scratch && cd scratch && git init -q
+          mkdir -p .github/workflows
+          # shellcheck disable=SC2016 # the $1 is meant literally: it is the finding
+          printf '#!/bin/sh\necho $1\n' > unquoted                       # for the shellcheck step: SC2086, found by its shebang
+          printf 'on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n' \
+            > .github/workflows/w.yml                                    # for the pinned step: a tag, not a SHA
+          printf 'FROM python:3.13-slim\n' > Dockerfile                   # for the pinned step: no digest
+          printf 'on: push\njobs:\n  a:\n    runs-on: no-such-label\n    steps:\n      - run: echo hi\n' \
+            > .github/workflows/labels.yml                               # for the actionlint step: unknown runner label
+                                                                         # (and workflow-safety: no top-level permissions;
+                                                                         # non-root: the Dockerfile has no USER)
+          git add -A
+      - name: shellcheck refuses
+        id: shellcheck
+        continue-on-error: true
+        working-directory: scratch
+        run: |
+          bash ../action/lint/src/lint.sh install
+          LINT_BIN="$RUNNER_TEMP/kilotronic-lint-sc0.11.0-al1.7.12" bash ../action/lint/src/lint.sh shellcheck
+      - name: actionlint refuses
+        id: actionlint
+        continue-on-error: true
+        working-directory: scratch
+        run: LINT_BIN="$RUNNER_TEMP/kilotronic-lint-sc0.11.0-al1.7.12" bash ../action/lint/src/lint.sh actionlint
+      - name: pinned refuses
+        id: pinned
+        continue-on-error: true
+        working-directory: scratch
+        run: bash ../action/lint/src/lint.sh pinned
+      - name: workflow-safety refuses
+        id: workflow-safety
+        continue-on-error: true
+        working-directory: scratch
+        run: bash ../action/lint/src/lint.sh workflow-safety
+      - name: non-root refuses
+        id: non-root
+        continue-on-error: true
+        working-directory: scratch
+        run: bash ../action/lint/src/lint.sh non-root
+      - name: pinned accepts an explained exception and a build stage
+        working-directory: scratch
+        run: |
+          printf 'FROM python:3.13-slim@sha256:%s AS base\nFROM base\n# unpinned-ok: digest set by the build command\nFROM ctx\n' \
+            "$(printf '0%.0s' $(seq 64))" > Dockerfile
+          printf 'on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: ./local\n      - uses: actions/checkout@%s\n' \
+            "$(printf 'a%.0s' $(seq 40))" > .github/workflows/w.yml
+          git add -A
+          bash ../action/lint/src/lint.sh pinned
+      - name: Each check must have refused
+        env:
+          SHELLCHECK: ${{ steps.shellcheck.outcome }}
+          ACTIONLINT: ${{ steps.actionlint.outcome }}
+          PINNED: ${{ steps.pinned.outcome }}
+          WORKFLOW_SAFETY: ${{ steps.workflow-safety.outcome }}
+          NON_ROOT: ${{ steps.non-root.outcome }}
+        run: |
+          echo "shellcheck=$SHELLCHECK actionlint=$ACTIONLINT pinned=$PINNED workflow-safety=$WORKFLOW_SAFETY non-root=$NON_ROOT"
+          test "$SHELLCHECK" = failure && test "$ACTIONLINT" = failure && test "$PINNED" = failure \
+            && test "$WORKFLOW_SAFETY" = failure && test "$NON_ROOT" = failure
+
+  git-identity-dogfood:
+    runs-on: ubuntu-latest
+    env:
+      GIT_AUTHOR_NAME: Reviewer
+      GIT_AUTHOR_EMAIL: reviewer@kilotronic.com
+      GIT_COMMITTER_NAME: Reviewer
+      GIT_COMMITTER_EMAIL: reviewer@kilotronic.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./git-identity
+        with:
+          commits: identity
+      - uses: ./git-identity
+        with:
+          commits: identity
+          domains: ixid.net, kilotronic.com
+      # An email outside the domains must be refused.
+      - uses: ./git-identity
+        id: wrong
+        continue-on-error: true
+        with:
+          commits: identity
+          domains: ixid.net
+      - name: The gate must refuse an email outside the domain
+        env:
+          WRONG: ${{ steps.wrong.outcome }}
+        run: test "$WRONG" = failure
+
+  git-identity-refuses:
+    runs-on: ubuntu-latest
+    env:
+      GIT_AUTHOR_NAME: test
+      GIT_AUTHOR_EMAIL: test@example.com
+      GIT_COMMITTER_NAME: test
+      GIT_COMMITTER_EMAIL: test@example.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./git-identity
+        id: gate
+        continue-on-error: true
+        with:
+          commits: identity
+      - name: The gate must refuse placeholders
+        env:
+          GATE: ${{ steps.gate.outcome }}
+        run: test "$GATE" = failure
+
+  git-identity-commits:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # allow-bots on a push asks which pull request a commit merged
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Default mode: this pull request's or push's own commits (placeholder and machine-default checks, and each
+      # subject reads `<type>: <imperative>`).
+      - uses: ./git-identity
+        with:
+          commit-subject: true
+      # allow-bots must not change the outcome for commits that are not a bot's own update.
+      - uses: ./git-identity
+        with:
+          allow-bots: dependabot, renovate
+      # Range mode: a fresh commit with a machine-default email must be refused, a real one accepted.
+      - name: Make a good and a bad commit
+        run: |
+          GIT_AUTHOR_NAME=Ada GIT_AUTHOR_EMAIL=ada@kilotronic.com GIT_COMMITTER_NAME=Ada \
+            GIT_COMMITTER_EMAIL=ada@kilotronic.com git commit -q --allow-empty -m good
+          GIT_AUTHOR_NAME=Jay GIT_AUTHOR_EMAIL=jay@Jays-MacBook-Pro.local GIT_COMMITTER_NAME=Jay \
+            GIT_COMMITTER_EMAIL=jay@Jays-MacBook-Pro.local git commit -q --allow-empty -m bad
+      - uses: ./git-identity
+        with:
+          commits: HEAD~2..HEAD~1
+          domains: kilotronic.com
+      - uses: ./git-identity
+        id: bad
+        continue-on-error: true
+        with:
+          commits: HEAD~1..HEAD
+      - name: The gate must refuse a machine-default author
+        env:
+          BAD: ${{ steps.bad.outcome }}
+        run: test "$BAD" = failure
+
+  secret-scan-dogfood:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Default mode on this repository's own pull request or push: both scanners, nothing to find.
+      - uses: ./secret-scan
+      # Range mode: a clean commit passes both scanners; a commit with a token-shaped string is refused.
+      - name: Make a clean commit and one with a fake token
+        run: |
+          git config user.name ci && git config user.email ci@kilotronic.com
+          echo "token = ghp_$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 36)" > leak.txt
+          git add leak.txt && git commit -q -m leak
+          git rm -q leak.txt && echo hello > clean.txt && git add clean.txt && git commit -q -m clean
+      - uses: ./secret-scan
+        with:
+          commits: HEAD~1..HEAD
+      - uses: ./secret-scan
+        id: leak
+        continue-on-error: true
+        with:
+          commits: HEAD~2..HEAD~1
+          trufflehog: "false" # the fake token can't be verified, so only gitleaks would catch it
+      - name: The scan must refuse the fake token
+        env:
+          LEAK: ${{ steps.leak.outcome }}
+        run: test "$LEAK" = failure
+
+  # trufflehog scans the commits gitleaks scans, not ones it picks itself. --no-verification makes a made-up token
+  # count. On this pull request, commits: all scans the whole history, not the pull request's commits; and a range
+  # whose ends have two merge bases (a criss-cross merge) doesn't reach past its own commits.
+  secret-scan-trufflehog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./secret-scan
+        with:
+          commits: all
+          gitleaks: "false"
+          trufflehog-args: --no-verification
+      - name: Make two merge bases, each with a fake token, and a clean range on top
+        id: cc
+        run: |
+          git config user.name ci && git config user.email ci@kilotronic.com
+          token() { echo "token = ghp_$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 36)"; }
+          o=$(git rev-parse HEAD)
+          token >x.txt && git add x.txt && git commit -q -m x1 && x1=$(git rev-parse HEAD)
+          git checkout -q --detach "$o"
+          token >y.txt && git add y.txt && git commit -q -m y1 && y1=$(git rev-parse HEAD)
+          git merge -q --no-ff -m b "$x1"
+          echo hello >c.txt && git add c.txt && git commit -q -m c && c=$(git rev-parse HEAD)
+          git checkout -q --detach "$x1" && git merge -q --no-ff -m a "$y1" && a=$(git rev-parse HEAD)
+          git checkout -q --detach "$c"
+          echo "range=$a..$c" >>"$GITHUB_OUTPUT"
+      - uses: ./secret-scan
+        with:
+          commits: ${{ steps.cc.outputs.range }}
+          trufflehog-args: --no-verification
+      - uses: ./secret-scan
+        id: all
+        continue-on-error: true
+        with:
+          commits: all
+          gitleaks: "false"
+          trufflehog-args: --no-verification
+      - name: commits all must reach the fake tokens below HEAD
+        env:
+          ALL: ${{ steps.all.outcome }}
+        run: test "$ALL" = failure
+
+  # This repository's own commits, against a small test denylist. Each entry is written so that its own text here
+  # does not match it (a character class, or format() joining two halves), so this file passes. Then a commit holding
+  # a test term, and an empty denylist, must be refused.
+  data-leak-check-dogfood:
+    runs-on: ubuntu-latest
+    env:
+      GIT_AUTHOR_NAME: Ada Example
+      GIT_AUTHOR_EMAIL: ada@example.org
+      GIT_COMMITTER_NAME: Ada Example
+      GIT_COMMITTER_EMAIL: ada@example.org
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./data-leak-check
+        with:
+          denylist: |
+            # test terms, not real ones
+            re:umbrella[ ]corporation
+            re:hooli[.]internal, ${{ format('{0}{1}', 'pied-', 'piper-net') }}
+      - name: Make a commit holding a test term
+        run: |
+          printf 'notes for umbrella %s\n' corporation > leak.txt
+          git add leak.txt
+          git commit -q -m 'Add notes'
+      - uses: ./data-leak-check
+        id: leak
+        continue-on-error: true
+        with:
+          commits: HEAD^!
+          denylist: re:umbrella[ ]corporation
+      - uses: ./data-leak-check
+        id: empty
+        continue-on-error: true
+        with:
+          commits: HEAD^!
+          denylist: ""
+      - uses: ./data-leak-check
+        with:
+          commits: HEAD^!
+          denylist: ""
+          if-empty: skip
+      - name: The leak and the empty denylist must have been refused
+        env:
+          LEAK: ${{ steps.leak.outcome }}
+          EMPTY: ${{ steps.empty.outcome }}
+        run: |
+          echo "leak=$LEAK empty=$EMPTY"
+          test "$LEAK" = failure && test "$EMPTY" = failure
+
+  # The composite Action end to end against the example tree.
+  vendored-license-check-dogfood:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./vendored-license-check
+        with:
+          root-dir: vendored-license-check/example
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # The hooks, through prek try-repo on this checkout: a clean sample passes, each check refuses its finding.
+
+  prek-hooks:
+    runs-on: ubuntu-latest
+    env:
+      GIT_AUTHOR_NAME: ci
+      GIT_AUTHOR_EMAIL: ci@kilotronic.com
+      GIT_COMMITTER_NAME: ci
+      GIT_COMMITTER_EMAIL: ci@kilotronic.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: pip install prek==0.5.11
+      - name: lint's shellcheck, actionlint and pinned
+        run: |
+          hooks="$GITHUB_WORKSPACE"
+          cd "$(mktemp -d)" && git init -q && mkdir -p .github/workflows
+          # shellcheck disable=SC2016 # the $1 is meant literally
+          printf '#!/bin/sh\necho "$1"\n' > ok.sh
+          printf 'on: push\npermissions: {}\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@%s\n' \
+            "$(printf 'a%.0s' $(seq 40))" > .github/workflows/w.yml
+          git add -A
+          for check in shellcheck actionlint pinned; do prek try-repo "$hooks" "$check" --all-files; done
+          git commit -q -m clean
+          for check in shellcheck actionlint pinned; do
+            git reset -q --hard
+            # shellcheck disable=SC2016 # the $1 is meant literally: it is the finding
+            case $check in
+              shellcheck) printf '#!/bin/sh\necho $1\n' > ok.sh ;;
+              actionlint) sed -i 's/ubuntu-latest/no-such-label/' .github/workflows/w.yml ;;
+              pinned) printf 'FROM python:3.13-slim\n' > Dockerfile ;;
+            esac
+            git add -A
+            if prek try-repo "$hooks" "$check" --all-files; then echo "::error::$check did not refuse"; exit 1; fi
+          done
+      - name: git-identity with a good and a bad identity
+        run: |
+          hooks="$GITHUB_WORKSPACE"
+          cd "$(mktemp -d)" && git init -q
+          echo hello > a.txt && git add a.txt
+          GIT_AUTHOR_NAME=Ada GIT_AUTHOR_EMAIL=ada@kilotronic.com GIT_COMMITTER_NAME=Ada \
+            GIT_COMMITTER_EMAIL=ada@kilotronic.com prek try-repo "$hooks" git-identity
+          if GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com GIT_COMMITTER_NAME=test \
+            GIT_COMMITTER_EMAIL=test@example.com prek try-repo "$hooks" git-identity; then
+            echo "::error::the placeholder identity was not refused"; exit 1
+          fi
+      - name: commit-subject and session-trailer with good and bad commit messages
+        run: |
+          hooks="$GITHUB_WORKSPACE"
+          cd "$(mktemp -d)" && git init -q
+          printf 'feat: add x\n' > good && printf 'added x\n' > bad
+          printf 'feat: add x\n\nClaude-%s: https://example.test/s1\n' Session > session
+          msg() { prek try-repo "$hooks" "$1" --stage commit-msg --commit-msg-filename "$2"; }
+          msg commit-subject good
+          if msg commit-subject bad; then echo "::error::a bad subject was not refused"; exit 1; fi
+          KILOTRONIC_VISIBILITY=private msg session-trailer session
+          if KILOTRONIC_VISIBILITY=public msg session-trailer session; then
+            echo "::error::a Claude-Session trailer in a public repository was not refused"; exit 1
+          fi
+      - name: secret-scan at commit and at push
+        run: |
+          hooks="$GITHUB_WORKSPACE"
+          cd "$(mktemp -d)" && git init -q
+          echo hello > clean.txt && git add clean.txt
+          prek try-repo "$hooks" secret-scan
+          git commit -q -m clean
+          echo "token = ghp_$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 36)" > leak.txt && git add leak.txt
+          if prek try-repo "$hooks" secret-scan; then echo "::error::the staged fake token was not refused"; exit 1; fi
+          git commit -q -m leak
+          git rm -q leak.txt && git commit -q -m clean2
+          prek try-repo "$hooks" secret-scan-push --hook-stage pre-push --from-ref HEAD~1 --to-ref HEAD
+          if prek try-repo "$hooks" secret-scan-push --hook-stage pre-push --from-ref HEAD~2 --to-ref HEAD~1; then
+            echo "::error::the pushed fake token was not refused"; exit 1
+          fi
+      - name: vendored-license-check against the example tree
+        run: |
+          hooks="$GITHUB_WORKSPACE"
+          cd "$(mktemp -d)" && git init -q
+          cp -r "$hooks/vendored-license-check/example/." . && git add -A
+          prek try-repo "$hooks" vendored-license-check --all-files
+          echo "x" > vendor/undeclared.js && git add -A
+          if prek try-repo "$hooks" vendored-license-check --all-files; then
+            echo "::error::the undeclared file was not refused"; exit 1
+          fi
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # red-on-logic on this repository's own pull requests: their new tests must fail on the base's code. Not part of
+  # `ci`, so not required.
+  red-on-logic:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts --prefix red-on-logic/tests/js
+      - run: uv sync --frozen
+        working-directory: red-on-logic
+      - uses: ./red-on-logic
+
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    needs:
+      [
+        data-leak-check,
+        secret-scan,
+        lint,
+        git-identity,
+        prek,
+        layout,
+        python-tests,
+        red-on-logic-tests,
+        lint-unit-tests,
+        lint-bundle,
+        secret-scan-unit-tests,
+        lint-dogfood,
+        lint-refuses,
+        git-identity-dogfood,
+        git-identity-refuses,
+        git-identity-commits,
+        secret-scan-dogfood,
+        secret-scan-trufflehog,
+        data-leak-check-dogfood,
+        vendored-license-check-dogfood,
+        prek-hooks,
+      ]
+    if: always()
+    steps:
+      # Every job in needs: is checked and must succeed, so a new job only has to be added there.
+      - name: Verify required jobs succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do test "$r" = success; done

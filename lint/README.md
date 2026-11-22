@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # pin a commit SHA, as the pinned check will tell you
-      - uses: kilotronic/lint@v1 # pin a commit SHA in production
+      - uses: kilotronic/checks/lint@<commit of the release> # v1.0.0
 ```
 
 Linux and macOS runners, x86_64 or arm64.
@@ -68,8 +68,8 @@ your `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
-  - repo: https://github.com/kilotronic/lint
-    rev: <commit of the release> # frozen: v1.3.2
+  - repo: https://github.com/kilotronic/checks
+    rev: <commit of the release> # frozen: v1.0.0
     hooks:
       # format-all: formatters, which rewrite files (first, so the linters see the result)
       - id: ruff-format # Python
@@ -134,7 +134,7 @@ and Node for `prettier` and `markdownlint`.
 
 workflow-safety's public-repository rule needs to know the repository's visibility: the Action reads the event's
 (as `KILOTRONIC_VISIBILITY`); a hook asks `gh repo view` once a day and keeps the answer in the clone's git
-directory (`kilotronic-visibility`, the same file kilotronic/git-identity's hooks use). Offline or without `gh`,
+directory (`kilotronic-visibility`, the same file the git-identity hooks use). Offline or without `gh`,
 the repository counts as not public; in an Action run that can't tell, the step says so as a warning.
 
 ## Skipping a check
@@ -181,8 +181,9 @@ The floor checks can't be skipped: naming `shellcheck`, `actionlint`, `pinned`, 
 ## Versions
 
 shellcheck 0.11.0 and actionlint 1.7.12. A new version means new checksums in `src/lint.sh`. The bundle's
-versions are in `.pre-commit-hooks.yaml` and the table above.
+versions are in the repository's root `.pre-commit-hooks.yaml` and the table above.
 
-Releases are tagged `vX.Y.Z`, with a moving `vX` tag for the Action. Hooks pin the release's commit.
+Released with the rest of kilotronic/checks: one `vX.Y.Z` tag for the repository, no moving tags. Pin the
+release's commit.
 
 MIT

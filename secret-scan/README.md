@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: kilotronic/secret-scan@v1 # pin a commit SHA in production
+      - uses: kilotronic/checks/secret-scan@<commit of the release> # v1.0.0
 ```
 
 The default shallow checkout is fine: the action fetches the history it needs. trufflehog runs in
@@ -60,8 +60,8 @@ The same scan runs on your machine with [prek](https://github.com/j178/prek) or
 
 ```yaml
 repos:
-  - repo: https://github.com/kilotronic/secret-scan
-    rev: 2665d6f2f0260d3ae0defbedcce27fc63ad6a168 # frozen: v1.2.1
+  - repo: https://github.com/kilotronic/checks
+    rev: <commit of the release> # frozen: v1.0.0
     hooks:
       - id: secret-scan # pre-commit: the staged changes
       - id: secret-scan-push # pre-push: the commits being pushed
@@ -107,5 +107,5 @@ regexes = ['''EXAMPLEKEY[0-9]+''']
 
 ## Versions
 
-Releases are tagged `vX.Y.Z` with a moving `vX` tag. gitleaks and trufflehog are updated in new
-releases, never silently.
+Released with the rest of kilotronic/checks: one `vX.Y.Z` tag for the repository, no moving tags.
+gitleaks and trufflehog are updated in new releases, never silently.

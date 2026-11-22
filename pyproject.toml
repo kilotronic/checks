@@ -1,0 +1,62 @@
+# The Python side of the hooks in .pre-commit-hooks.yaml. pre-commit and prek install this repository's root as
+# one package, so it carries every hook tool's package and command. Each tool keeps its own pyproject.toml for
+# its tests and its Action; tests/test_layout.py checks that the commands here are the union of theirs.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kilotronic-checks"
+version = "1.0.0"
+description = "The commands behind kilotronic/checks' pre-commit and prek hooks."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Kilotronic LLC" }]
+dependencies = []
+
+[project.scripts]
+# lint
+kilotronic-csv-lint = "kilotronic_lint.csv_lint:main"
+kilotronic-yamllint = "kilotronic_lint.tools:yamllint_main"
+kilotronic-shfmt = "kilotronic_lint.tools:shfmt_main"
+# git-identity
+check-git-identity = "git_identity.check:main"
+check-commit-subject = "git_identity.commit_msg:subject_main"
+check-session-trailer = "git_identity.commit_msg:trailer_main"
+# data-leak-check
+data-leak-check = "data_leak_check.check:main"
+# vendored-license-check
+vendored-license-check = "vendored_license_check.check:main"
+
+[project.urls]
+Homepage = "https://github.com/kilotronic/checks"
+Issues = "https://github.com/kilotronic/checks/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+  "lint/src/kilotronic_lint",
+  "git-identity/src/git_identity",
+  "data-leak-check/src/data_leak_check",
+  "vendored-license-check/src/vendored_license_check",
+]
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+  "lint/src/kilotronic_lint",
+  "git-identity/src/git_identity",
+  "data-leak-check/src/data_leak_check",
+  "vendored-license-check/src/vendored_license_check",
+  "README.md",
+  "LICENSE",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+# Each tool's own package is first-party to its tests, as it was in the tool's own repository.
+src = [".", "*/src"]
+# Most tools need 3.11 (tomllib); the hooks package still installs on 3.9 for lint's hooks.
+target-version = "py311"

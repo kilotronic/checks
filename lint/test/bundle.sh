@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Tests for the format and lint bundle's hooks (.pre-commit-hooks.yaml), through `prek try-repo` (or
+# Tests for the format and lint bundle's hooks (the root .pre-commit-hooks.yaml), through `prek try-repo` (or
 # `pre-commit try-repo` with HOOK_RUNNER=pre-commit) on this checkout's HEAD: a clean sample of every file type
 # passes every hook, and each hook refuses (or rewrites) its own planted defect. CSV files are never rewritten.
 # Run: bash test/bundle.sh   (needs prek or pre-commit, Python and Node; installs each tool once, cached)
 set -euo pipefail
 
-HOOKS="$(cd "$(dirname "$0")/.." && pwd)"
+HOOKS="$(cd "$(dirname "$0")/../.." && pwd)" # the repository root, where .pre-commit-hooks.yaml is
+# lint's hook ids: the ones under the manifest's `# === lint` heading.
+LINT_HOOKS=$(awk '/^# === /{on = ($3 == "lint")} on && /^- id: /{print $3}' "$HOOKS/.pre-commit-hooks.yaml")
 RUNNER="${HOOK_RUNNER:-prek}"
 fails=0
 pass() { echo "ok   $1"; }
@@ -18,9 +20,20 @@ trap 'rm -rf "$tmp"' EXIT
 export GIT_AUTHOR_NAME=ci GIT_AUTHOR_EMAIL=ci@kilotronic.com GIT_COMMITTER_NAME=ci GIT_COMMITTER_EMAIL=ci@kilotronic.com
 unset KILOTRONIC_VISIBILITY
 
-run() { # run <hook id|""> : the hook (or every hook) on every file of the scratch repository
-  # shellcheck disable=SC2086 # an empty id runs every hook
-  "$RUNNER" try-repo "$HOOKS" ${1:-} --all-files >"$tmp/log" 2>&1
+run() { # run <hook id|""> : the hook (or every lint hook) on every file of the scratch repository
+  if [ -n "${1:-}" ]; then
+    "$RUNNER" try-repo "$HOOKS" "$1" --all-files >"$tmp/log" 2>&1
+    return
+  fi
+  # Every lint hook, not the other tools' hooks in the same manifest: a config outside the scratch repository.
+  {
+    echo "repos:"
+    echo "  - repo: $HOOKS"
+    echo "    rev: $(git -C "$HOOKS" rev-parse HEAD)"
+    echo "    hooks:"
+    for h in $LINT_HOOKS; do echo "      - id: $h"; done
+  } >"$tmp/lint-hooks.yaml"
+  "$RUNNER" run --config "$tmp/lint-hooks.yaml" --all-files >"$tmp/log" 2>&1
 }
 # A scratch repository holding a clean sample of every file type the bundle reads.
 clean_repo() {
