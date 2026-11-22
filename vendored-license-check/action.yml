@@ -1,0 +1,56 @@
+name: Vendored License Check
+description: Enforce that every vendored asset file committed to the repo is declared with an allow-listed SPDX license.
+branding:
+  icon: shield
+  color: green
+
+inputs:
+  manifest:
+    description: Path to the TOML manifest, relative to root-dir.
+    required: false
+    default: vendored-assets.toml
+  root-dir:
+    description: Repository root that roots/manifest are relative to.
+    required: false
+    default: "."
+  roots:
+    description: Vendored root directories to scan (comma- or space-separated). Falls back to manifest [config].roots.
+    required: false
+    default: ""
+  allow:
+    description: Allowed SPDX ids (comma- or space-separated). Falls back to manifest [config].allow, then a built-in permissive set.
+    required: false
+    default: ""
+  deny:
+    description: Explicitly denied SPDX ids (comma- or space-separated). Falls back to manifest [config].deny.
+    required: false
+    default: ""
+  python-version:
+    description: Python version to run the gate with (>=3.11 required for tomllib).
+    required: false
+    default: "3.12"
+
+runs:
+  using: composite
+  steps:
+    # Best-effort: guarantees 3.11+ on GitHub-hosted runners. On runners where
+    # setup-python can't provision a build (e.g. self-hosted Debian images that
+    # aren't in the version manifest), this is skipped and the next step uses the
+    # runner's own python3 (which must be 3.11+ for stdlib tomllib).
+    - name: Set up Python
+      continue-on-error: true
+      # Pinned by SHA: a repository that requires SHA-pinned actions refuses a tag inside a composite too.
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Run vendored-license-check
+      shell: bash
+      # Empty string inputs are safe: the gate treats them as "unset" and falls
+      # back to the manifest [config] table, then built-in defaults.
+      run: |
+        python3 "$GITHUB_ACTION_PATH/src/vendored_license_check/check.py" \
+          --root-dir "${{ inputs.root-dir }}" \
+          --manifest "${{ inputs.manifest }}" \
+          --root "${{ inputs.roots }}" \
+          --allow "${{ inputs.allow }}" \
+          --deny "${{ inputs.deny }}"
