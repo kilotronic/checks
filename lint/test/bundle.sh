@@ -267,6 +267,13 @@ if grep -q 'We prioritize the color.' b.md && grep -q 'the color' b.txt; then pa
   sed 's/^/     /' b.md b.txt "$tmp/log"
 fi
 clean_repo
+printf "# Notes\n\nThe organisation's plan.\n" >b.md
+git add -A
+if ! run us-english && grep -q "The organization's plan." b.md; then pass "us-english rewrites a possessive"; else
+  fail "us-english rewrites a possessive"
+  sed 's/^/     /' b.md "$tmp/log"
+fi
+clean_repo
 printf '# prioritise the colour\ncolour = "prioritise"\n' >b.py
 git add -A
 if run us-english && grep -q 'colour = "prioritise"' b.py; then pass "us-english leaves code files alone"; else
@@ -299,6 +306,12 @@ else
 fi
 if grep -q prioritise "$tmp/COMMIT_EDITMSG"; then pass "us-english-commit-msg reports, and leaves the message as written"; else
   fail "us-english-commit-msg reports, and leaves the message as written"
+fi
+if msg 'docs: prioritize the color\n# Please enter the commit message. The colour of comments is not checked.\n# ------------------------ >8 ------------------------\ndiff --git a/b.md b/b.md\n-the colour\n+the color\n'; then
+  pass "us-english-commit-msg skips git's comments and the commit -v diff"
+else
+  fail "us-english-commit-msg skips git's comments and the commit -v diff"
+  sed 's/^/     /' "$tmp/log"
 fi
 if msg 'docs: prioritize the color of the logo\n'; then pass "us-english-commit-msg passes an American commit message"; else
   fail "us-english-commit-msg passes an American commit message"

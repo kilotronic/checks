@@ -21,6 +21,7 @@ dependencies = []
 kilotronic-csv-lint = "kilotronic_lint.csv_lint:main"
 kilotronic-yamllint = "kilotronic_lint.tools:yamllint_main"
 kilotronic-shfmt = "kilotronic_lint.tools:shfmt_main"
+kilotronic-us-english-commit-msg = "kilotronic_lint.us_english:main"
 # git-identity
 check-git-identity = "git_identity.check:main"
 check-commit-subject = "git_identity.commit_msg:subject_main"
