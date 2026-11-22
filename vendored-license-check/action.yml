@@ -45,12 +45,19 @@ runs:
         python-version: ${{ inputs.python-version }}
     - name: Run vendored-license-check
       shell: bash
+      # Through env:, never written into the script: an input is the caller's text.
       # Empty string inputs are safe: the gate treats them as "unset" and falls
       # back to the manifest [config] table, then built-in defaults.
+      env:
+        ROOT_DIR: ${{ inputs.root-dir }}
+        MANIFEST: ${{ inputs.manifest }}
+        ROOTS: ${{ inputs.roots }}
+        ALLOW: ${{ inputs.allow }}
+        DENY: ${{ inputs.deny }}
       run: |
         python3 "$GITHUB_ACTION_PATH/src/vendored_license_check/check.py" \
-          --root-dir "${{ inputs.root-dir }}" \
-          --manifest "${{ inputs.manifest }}" \
-          --root "${{ inputs.roots }}" \
-          --allow "${{ inputs.allow }}" \
-          --deny "${{ inputs.deny }}"
+          --root-dir "$ROOT_DIR" \
+          --manifest "$MANIFEST" \
+          --root "$ROOTS" \
+          --allow "$ALLOW" \
+          --deny "$DENY"
