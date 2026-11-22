@@ -253,6 +253,55 @@ if run shfmt; then pass "shfmt reads the repository's .editorconfig"; else
   sed 's/^/     /' "$tmp/log"
 fi
 
+# --- us-english: British spellings in prose are rewritten to American; code and a repo's own ignore list are left
+clean_repo
+printf '# Notes\n\nWe prioritise the colour.\n' >b.md
+printf 'notes on the colour\n' >b.txt
+git add -A
+if run us-english; then fail "us-english refuses British spellings in Markdown"; else
+  pass "us-english refuses British spellings in Markdown"
+fi
+if grep -q 'We prioritize the color.' b.md && grep -q 'the color' b.txt; then pass "us-english rewrites them to American"; else
+  fail "us-english rewrites them to American"
+  sed 's/^/     /' b.md b.txt "$tmp/log"
+fi
+clean_repo
+printf '# prioritise the colour\ncolour = "prioritise"\n' >b.py
+git add -A
+if run us-english && grep -q 'colour = "prioritise"' b.py; then pass "us-english leaves code files alone"; else
+  fail "us-english leaves code files alone"
+  sed 's/^/     /' "$tmp/log"
+fi
+clean_repo
+printf '# Notes\n\nThe Colour Company makes paint.\n' >b.md
+printf '[codespell]\nignore-words-list = colour\n' >.codespellrc
+git add -A
+if run us-english && grep -q 'The Colour Company' b.md; then pass "us-english honors the repository's ignore list"; else
+  fail "us-english honors the repository's ignore list"
+  sed 's/^/     /' "$tmp/log"
+fi
+clean_repo
+if run us-english; then pass "us-english passes a clean repository"; else
+  fail "us-english passes a clean repository"
+  sed 's/^/     /' "$tmp/log"
+fi
+msg() { # msg <text>: run us-english-commit-msg on a commit message holding <text>
+  printf '%b' "$1" >"$tmp/COMMIT_EDITMSG"
+  "$RUNNER" try-repo "$HOOKS" us-english-commit-msg --hook-stage commit-msg --commit-msg-filename "$tmp/COMMIT_EDITMSG" >"$tmp/log" 2>&1
+}
+clean_repo
+if msg 'docs: prioritise the colour of the logo\n'; then
+  fail "us-english-commit-msg refuses a British commit message"
+  sed 's/^/     /' "$tmp/log"
+else pass "us-english-commit-msg refuses a British commit message"; fi
+if grep -q prioritise "$tmp/COMMIT_EDITMSG"; then pass "us-english-commit-msg reports, and leaves the message as written"; else
+  fail "us-english-commit-msg reports, and leaves the message as written"
+fi
+if msg 'docs: prioritize the color of the logo\n'; then pass "us-english-commit-msg passes an American commit message"; else
+  fail "us-english-commit-msg passes an American commit message"
+  sed 's/^/     /' "$tmp/log"
+fi
+
 echo
 if [ "$fails" -gt 0 ]; then
   echo "$fails failed"
