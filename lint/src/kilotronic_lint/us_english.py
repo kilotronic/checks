@@ -12,10 +12,13 @@ import sys
 import tempfile
 from pathlib import Path
 
-import codespell_lib
-from git_identity.commit_msg import cleaned
 
-LIST = Path(codespell_lib.__file__).parent / "data" / "dictionary_en-GB_to_en-US.txt"
+
+def british_list() -> Path:
+    # Imported here: the hook's environment has codespell (its additional dependency); lint's own does not.
+    import codespell_lib
+
+    return Path(codespell_lib.__file__).parent / "data" / "dictionary_en-GB_to_en-US.txt"
 
 
 def possessives(entries: str) -> str:
@@ -32,7 +35,7 @@ def possessives(entries: str) -> str:
 
 def codespell(args: list[str], stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as extra:
-        extra.write(possessives(LIST.read_text(encoding="utf-8")))
+        extra.write(possessives(british_list().read_text(encoding="utf-8")))
     try:
         cmd = ["codespell", "--builtin", "en-GB_to_en-US", "-D", "-", "-D", extra.name, *args]
         return subprocess.run(cmd, input=stdin, capture_output=stdin is not None, text=True, check=False)
@@ -52,6 +55,9 @@ def commit_msg_main(argv: list[str] | None = None) -> int:
     if len(args) != 1:
         print("usage: kilotronic-us-english-commit-msg <commit message file>", file=sys.stderr)
         return 2
+    # git-identity's cleanup, the same one its commit-msg hook uses; the hooks install every tool together.
+    from git_identity.commit_msg import cleaned
+
     text = cleaned(Path(args[0]).read_text(encoding="utf-8", errors="replace"))
     out = codespell(["-"], stdin=text)
     report = out.stdout.replace("-:", "commit message line ")
