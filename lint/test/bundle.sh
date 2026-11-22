@@ -258,8 +258,9 @@ clean_repo
 printf '# Notes\n\nWe prioritise the colour.\n' >b.md
 printf 'notes on the colour\n' >b.txt
 git add -A
-if run us-english; then fail "us-english refuses British spellings in Markdown"; else
-  pass "us-english refuses British spellings in Markdown"
+if ! run us-english && grep -q 'colour ==> color' "$tmp/log"; then pass "us-english refuses British spellings in Markdown"; else
+  fail "us-english refuses British spellings in Markdown"
+  sed 's/^/     /' "$tmp/log"
 fi
 if grep -q 'We prioritize the color.' b.md && grep -q 'the color' b.txt; then pass "us-english rewrites them to American"; else
   fail "us-english rewrites them to American"
@@ -290,10 +291,12 @@ msg() { # msg <text>: run us-english-commit-msg on a commit message holding <tex
   "$RUNNER" try-repo "$HOOKS" us-english-commit-msg --hook-stage commit-msg --commit-msg-filename "$tmp/COMMIT_EDITMSG" >"$tmp/log" 2>&1
 }
 clean_repo
-if msg 'docs: prioritise the colour of the logo\n'; then
+if ! msg 'docs: prioritise the colour of the logo\n' && grep -q 'prioritise ==> prioritize' "$tmp/log"; then
+  pass "us-english-commit-msg refuses a British commit message"
+else
   fail "us-english-commit-msg refuses a British commit message"
   sed 's/^/     /' "$tmp/log"
-else pass "us-english-commit-msg refuses a British commit message"; fi
+fi
 if grep -q prioritise "$tmp/COMMIT_EDITMSG"; then pass "us-english-commit-msg reports, and leaves the message as written"; else
   fail "us-english-commit-msg reports, and leaves the message as written"
 fi
