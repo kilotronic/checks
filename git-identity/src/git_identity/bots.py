@@ -33,6 +33,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -163,6 +164,26 @@ def which_bot(names: Sequence[str], **context) -> str | None:
     return None
 
 
+# GitHub links a squash commit to its pull request some seconds after the merge, while the
+# push's run may already be asking: wait for the link, up to a minute and a half.
+WAITS = (5, 10, 15, 20, 20, 20)
+
+
+def patient(pulls_of: PullsOf, sleep: Callable[[float], object]) -> PullsOf:
+    """``pulls_of``, asked again while GitHub links no pull request to the commit yet."""
+
+    def ask(sha: str) -> list[dict]:
+        found = pulls_of(sha)
+        for wait in WAITS:
+            if found:
+                break
+            sleep(wait)
+            found = pulls_of(sha)
+        return found
+
+    return ask
+
+
 def github_pulls_of(environ: Mapping[str, str]) -> PullsOf:
     """The pull requests GitHub links to a commit (needs ``pull-requests: read``)."""
 
@@ -211,7 +232,7 @@ def main(
         head_ref=env.get("HEAD_REF", ""),
         actor=env.get("ACTOR", ""),
         git_log=git_log or _git_log,
-        pulls_of=pulls_of or github_pulls_of(env),
+        pulls_of=patient(pulls_of or github_pulls_of(env), time.sleep),
     )
     if bot is None:
         if given:
