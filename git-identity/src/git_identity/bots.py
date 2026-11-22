@@ -209,7 +209,6 @@ def main(
     environ: Mapping[str, str] | None = None,
     git_log: GitLog | None = None,
     pulls_of: PullsOf | None = None,
-    sleep: Callable[[float], object] = time.sleep,
 ) -> int:
     parser = argparse.ArgumentParser(prog="git-identity-bots")
     parser.add_argument(
@@ -233,7 +232,7 @@ def main(
         head_ref=env.get("HEAD_REF", ""),
         actor=env.get("ACTOR", ""),
         git_log=git_log or _git_log,
-        pulls_of=patient(pulls_of or github_pulls_of(env), sleep),
+        pulls_of=patient(pulls_of or github_pulls_of(env), time.sleep),
     )
     if bot is None:
         if given:
