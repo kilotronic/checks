@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: kilotronic/git-identity@v2 # pin a commit SHA in production
+      - uses: kilotronic/checks/git-identity@<commit of the release> # v1.0.0
         with:
           domains: ixid.net, kilotronic.com # optional
 ```
@@ -90,7 +90,7 @@ permissions:
   pull-requests: read # allow-bots: which pull request a pushed commit merged
 steps:
   - uses: actions/checkout@v4
-  - uses: kilotronic/git-identity@v2
+  - uses: kilotronic/checks/git-identity@<commit of the release> # v1.0.0
     with:
       domains: ixid.net
       allow-bots: dependabot, renovate
@@ -126,8 +126,8 @@ Works with [prek](https://github.com/j178/prek) and with [pre-commit](https://pr
 
 ```yaml
 repos:
-  - repo: https://github.com/kilotronic/git-identity
-    rev: b0d54e809d81cabf61d357cbe519a9b9263b17cb # frozen: v2.4.0
+  - repo: https://github.com/kilotronic/checks
+    rev: <commit of the release> # frozen: v1.0.0
     hooks:
       - id: git-identity
         args: ["--domain=ixid.net,kilotronic.com"] # optional; quoted, or YAML splits the list at the comma
@@ -139,8 +139,8 @@ The commit-message hooks run at the `commit-msg` stage:
 ```yaml
 default_install_hook_types: [pre-commit, commit-msg]
 repos:
-  - repo: https://github.com/kilotronic/git-identity
-    rev: <commit of the release> # frozen: v2.4.0
+  - repo: https://github.com/kilotronic/checks
+    rev: <commit of the release> # frozen: v1.0.0
     hooks:
       - id: git-identity
       - id: commit-subject
@@ -150,7 +150,7 @@ repos:
 
 `session-trailer` needs the repository's visibility: `$KILOTRONIC_VISIBILITY` when set (the Action passes
 the event's), else `gh repo view` once a day, kept in the clone's git directory (`kilotronic-visibility`, the
-same file kilotronic/lint's hooks use). Offline or without `gh` the visibility is unknown, and the hook passes
+same file the lint hooks use). Offline or without `gh` the visibility is unknown, and the hook passes
 with a note: it refuses only when it knows the repository is public.
 
 Two gaps the hooks can't close, because a hook can't tell `git commit -m` from the editor: with `-m`, git keeps
@@ -176,7 +176,7 @@ new commits. Use the Action to catch anything that slips past.
 ## Use as a CLI
 
 ```bash
-pip install git+https://github.com/kilotronic/git-identity.git@v2.3.1
+pip install "git+https://github.com/kilotronic/checks.git@v1.0.0#subdirectory=git-identity"
 check-git-identity                                  # this machine; default identities only
 check-git-identity --domain ixid.net,kilotronic.com # also require one of these domains
 check-git-identity --commits origin/main..HEAD --domain ixid.net  # judge existing commits' authors

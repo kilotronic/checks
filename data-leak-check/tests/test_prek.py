@@ -15,7 +15,12 @@ import pytest
 from conftest import ROOT, Repo, isolated_env
 
 RUNNERS = ["prek", "pre-commit"]
-COPY = ["pyproject.toml", "README.md", "LICENSE", ".pre-commit-hooks.yaml", "src"]
+# The repository root holds the hook manifest and the one package every Python hook installs, which carries each
+# hook tool's source.
+REPO = ROOT.parent
+COPY = ["pyproject.toml", "README.md", "LICENSE", ".pre-commit-hooks.yaml"] + [
+    f"{tool}/src" for tool in ("lint", "git-identity", "data-leak-check", "vendored-license-check")
+]
 
 
 @pytest.fixture(scope="session")
@@ -25,11 +30,12 @@ def cache(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture
 def hook_repo(tmp_path: Path, home: Path) -> tuple[Path, str]:
-    """This project, committed into its own repository, as prek and pre-commit fetch it."""
+    """This repository's hooks, committed into a repository of their own, as prek and pre-commit fetch it."""
     path = tmp_path / "hook-repo"
     path.mkdir()
     for name in COPY:
-        src = ROOT / name
+        src = REPO / name
+        (path / name).parent.mkdir(parents=True, exist_ok=True)
         if src.is_dir():
             shutil.copytree(src, path / name, ignore=shutil.ignore_patterns("__pycache__"))
         else:

@@ -1,0 +1,13 @@
+{
+  "name": "kilotronic-checks-hooks",
+  "version": "1.0.0",
+  "description": "The Node side of kilotronic/checks' pre-commit hooks (lint's markdownlint with a default configuration).",
+  "license": "MIT",
+  "private": true,
+  "bin": {
+    "kilotronic-markdownlint": "lint/src/markdownlint/run.mjs"
+  },
+  "files": [
+    "lint/src/markdownlint/"
+  ]
+}
