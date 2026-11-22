@@ -61,7 +61,7 @@ url = "https://github.com/Outfitio/Outfit-Fonts"
 - Meta files are ignored automatically: dotfiles, `*.md`, and legal or readme files. Those are
   named `LICENSE`, `LICENCE`, `COPYING`, `NOTICE`, `OFL` or `README` (any case), optionally
   with a qualifier (upper case after `-` or `_`, as in `LICENSE-MIT` or `OFL-1.1`; a version
-  or licence name after `.`, as in `COPYING.LESSER` or `LICENSE.MIT`) and a document
+  or license name after `.`, as in `COPYING.LESSER` or `LICENSE.MIT`) and a document
   extension: `.txt`, `.markdown`, `.rst`, `.pdf` or `.rtf`.
   Anything else needs an entry, including a library whose name merely starts with one of
   those words (`readme-viewer.js`, `license-checker`, `notice-banner.html`) and a legal file
@@ -77,7 +77,7 @@ Works with [prek](https://github.com/j178/prek) and [pre-commit](https://pre-com
 ```yaml
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.0.0
+    rev: <commit of the release> # frozen: v1.1.0
     hooks:
       - id: vendored-license-check
         # Optional: only run when vendored files or the manifest change.
@@ -92,7 +92,7 @@ itself (`pass_filenames: false`); the `files:` filter just controls _when_ it ru
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: kilotronic/checks/vendored-license-check@<commit of the release> # v1.0.0
+- uses: kilotronic/checks/vendored-license-check@<commit of the release> # v1.1.0
   # All inputs are optional and fall back to the manifest [config] table:
   with:
     manifest: vendored-assets.toml

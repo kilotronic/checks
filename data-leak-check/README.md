@@ -1,6 +1,6 @@
 # data-leak-check
 
-A small, stdlib-only gate that keeps an organisation's private data out of its public repositories. You give it
+A small, stdlib-only gate that keeps an organization's private data out of its public repositories. You give it
 a **denylist**: the terms that must never appear in public, such as your company's internal names, people's
 names, private repository names and internal hostnames. It refuses any change, commit message or commit
 author that matches one.
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@<sha> # pin actions by full commit SHA
         with:
           persist-credentials: false
-      - uses: kilotronic/checks/data-leak-check@<commit of the release> # v1.0.0
+      - uses: kilotronic/checks/data-leak-check@<commit of the release> # v1.1.0
         with:
           denylist: ${{ secrets.DATA_LEAK_DENYLIST }}
 ```
@@ -81,7 +81,7 @@ commits. For a newly pushed branch, that is everything on it that the default br
 events check the checked-out commit. It fetches the history it needs itself, so the default shallow checkout
 is fine.
 
-**Where the list comes from.** Store it as an organisation or repository **secret** or **variable** named
+**Where the list comes from.** Store it as an organization or repository **secret** or **variable** named
 `DATA_LEAK_DENYLIST` and pass it in:
 
 ```yaml
@@ -96,8 +96,8 @@ with:
 
 **Prefer a secret for public repositories.** GitHub masks a secret's value in the log. It does not mask a
 variable: it prints the Action's inputs at the top of the step's log, so a variable's denylist is readable by
-anyone who can see the run, which on a public repository is everyone. For an organisation secret, give the
-public repositories access to it in the organisation's settings.
+anyone who can see the run, which on a public repository is everyone. For an organization secret, give the
+public repositories access to it in the organization's settings.
 
 **A missing denylist fails the check** by default (`if-empty: fail`), so a secret that was never set, or that
 a repository was not given, cannot quietly pass. Two kinds of runs never get Actions secrets:
@@ -109,7 +109,7 @@ a repository was not given, cannot quietly pass. Two kinds of runs never get Act
 To let those pass unchecked rather than fail, set `if-empty: skip`. A typical split:
 
 ```yaml
-- uses: kilotronic/checks/data-leak-check@<commit of the release> # v1.0.0
+- uses: kilotronic/checks/data-leak-check@<commit of the release> # v1.1.0
   with:
     denylist: ${{ secrets.DATA_LEAK_DENYLIST }}
     # Fail if the secret is missing on our own branches; let forks and Dependabot through.
@@ -139,7 +139,7 @@ hook per stage:
 default_install_hook_types: [pre-commit, commit-msg, pre-push]
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.0.0
+    rev: <commit of the release> # frozen: v1.1.0
     hooks:
       - id: data-leak-check # pre-commit: staged changes and the commit's identity
       - id: data-leak-check-commit-msg # commit-msg: the message
@@ -168,7 +168,7 @@ with `--no-verify`. With no runner refs, it checks every commit no remote has ye
 ## Use as a CLI
 
 ```bash
-pip install "git+https://github.com/kilotronic/checks.git@v1.0.0#subdirectory=data-leak-check"
+pip install "git+https://github.com/kilotronic/checks.git@v1.1.0#subdirectory=data-leak-check"
 data-leak-check                        # the staged changes (same as --staged)
 data-leak-check --commits main..HEAD   # every commit in a range: authors, messages, content
 data-leak-check --commit-msg .git/COMMIT_EDITMSG

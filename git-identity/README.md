@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: kilotronic/checks/git-identity@<commit of the release> # v1.0.0
+      - uses: kilotronic/checks/git-identity@<commit of the release> # v1.1.0
         with:
           domains: ixid.net, kilotronic.com # optional
 ```
@@ -72,7 +72,7 @@ Inputs:
 | ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `domains`        | empty (any)                  | Allowed email domains, separated by commas, spaces or newlines                                                                                                |
 | `commits`        | empty (this event's commits) | A git range such as `main..HEAD`, or `identity` to check the identity git would stamp on the runner (the v1 behavior)                                         |
-| `allow-bots`     | empty (the default bots)     | More bots whose own updates skip the check, such as your organisation's agent App (`<app>[bot]`); `none` turns the default bots off (see below)               |
+| `allow-bots`     | empty (the default bots)     | More bots whose own updates skip the check, such as your organization's agent App (`<app>[bot]`); `none` turns the default bots off (see below)               |
 | `commit-subject` | `false`                      | `true` also checks each commit's subject (see above)                                                                                                          |
 | `commit-types`   | empty (the default list)     | The types `commit-subject` allows, separated by commas or spaces                                                                                              |
 | `skip`           | empty                        | Checks to skip, by id: only `commit-subject`. The author check and the session trailer check are the floor: naming one warns and it runs; an unknown id fails |
@@ -85,7 +85,7 @@ Dependabot and Renovate author their commits as their GitHub noreply address, wh
 contains, and an agents' GitHub App that squash-merges its own pull requests authors the squash commit. So
 with `domains` set their updates would fail. A bot's own update gets through instead: `dependabot`,
 `renovate` and `kilotronic-agents` always (unless `allow-bots: none`), and any other App you name by its bot
-user in `allow-bots`, such as your organisation's agent App:
+user in `allow-bots`, such as your organization's agent App:
 
 ```yaml
 permissions:
@@ -93,7 +93,7 @@ permissions:
   pull-requests: read # allow-bots: which pull request a pushed commit merged
 steps:
   - uses: actions/checkout@v4
-  - uses: kilotronic/checks/git-identity@<commit of the release> # v1.0.0
+  - uses: kilotronic/checks/git-identity@<commit of the release> # v1.1.0
     with:
       domains: ixid.net
       allow-bots: acme-agents[bot] # optional: an App besides the default bots
@@ -133,7 +133,7 @@ Works with [prek](https://github.com/j178/prek) and with [pre-commit](https://pr
 ```yaml
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.0.0
+    rev: <commit of the release> # frozen: v1.1.0
     hooks:
       - id: git-identity
         args: ["--domain=ixid.net,kilotronic.com"] # optional; quoted, or YAML splits the list at the comma
@@ -146,7 +146,7 @@ The commit-message hooks run at the `commit-msg` stage:
 default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.0.0
+    rev: <commit of the release> # frozen: v1.1.0
     hooks:
       - id: git-identity
       - id: commit-subject
@@ -182,7 +182,7 @@ new commits. Use the Action to catch anything that slips past.
 ## Use as a CLI
 
 ```bash
-pip install "git+https://github.com/kilotronic/checks.git@v1.0.0#subdirectory=git-identity"
+pip install "git+https://github.com/kilotronic/checks.git@v1.1.0#subdirectory=git-identity"
 check-git-identity                                  # this machine; default identities only
 check-git-identity --domain ixid.net,kilotronic.com # also require one of these domains
 check-git-identity --commits origin/main..HEAD --domain ixid.net  # judge existing commits' authors

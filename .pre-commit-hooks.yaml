@@ -111,6 +111,22 @@
   language: python
   additional_dependencies: [yamllint==1.38.0]
   types: [yaml]
+- id: us-english
+  name: us-english (British spellings in prose rewritten to American)
+  description: codespell's British-to-American list only, on Markdown, plain text and reStructuredText; code files, code spans and blocks, and link targets are left alone. A repository's own codespell config (.codespellrc, setup.cfg or pyproject's [tool.codespell]) adds words to ignore.
+  entry: kilotronic-us-english
+  language: python
+  additional_dependencies: ["codespell[toml]==2.4.3"]
+  files: (?i)\.(md|markdown|txt|rst)$
+  # Plain-text files that are data or copied text, not prose: dependency lists, CMake, license and notice texts.
+  exclude: (?i)(^|/)(requirements[^/]*|constraints[^/]*|CMakeLists|(UN)?LICEN[CS]E[^/]*|COPYING[^/]*|NOTICE[^/]*|AUTHORS[^/]*)\.txt$
+- id: us-english-commit-msg
+  name: us-english (no British spellings in the commit message)
+  description: The same check on the commit message; it reports and leaves the message as written.
+  entry: kilotronic-us-english-commit-msg
+  language: python
+  additional_dependencies: ["codespell[toml]==2.4.3"]
+  stages: [commit-msg]
 - id: csv-lint
   name: csv-lint (UTF-8, same columns in every row, a final newline; never rewritten)
   entry: kilotronic-csv-lint

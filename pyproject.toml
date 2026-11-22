@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kilotronic-checks"
-version = "1.0.0"
+version = "1.1.0"
 description = "The commands behind kilotronic/checks' pre-commit and prek hooks."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,6 +21,8 @@ dependencies = []
 kilotronic-csv-lint = "kilotronic_lint.csv_lint:main"
 kilotronic-yamllint = "kilotronic_lint.tools:yamllint_main"
 kilotronic-shfmt = "kilotronic_lint.tools:shfmt_main"
+kilotronic-us-english = "kilotronic_lint.us_english:main"
+kilotronic-us-english-commit-msg = "kilotronic_lint.us_english:commit_msg_main"
 # git-identity
 check-git-identity = "git_identity.check:main"
 check-commit-subject = "git_identity.commit_msg:subject_main"
