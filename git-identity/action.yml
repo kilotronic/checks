@@ -25,10 +25,12 @@ inputs:
     default: ""
   allow-bots:
     description: >-
-      Dependency bots whose own updates skip the author check, separated by commas, spaces or newlines:
-      "dependabot", "renovate". Empty (default) exempts nobody. Only a pull request the bot opened from its
-      branch, started by the bot and holding only its commits, or the merge of such a pull request on a push,
-      is skipped; a commit that only uses a bot's email is checked as usual. Needs `pull-requests: read`.
+      More bots whose own updates skip the author check, separated by commas, spaces or newlines: a GitHub
+      App by its bot user ("<app>[bot]"), e.g. your organisation's agent App. "dependabot", "renovate" and
+      "kilotronic-agents" are always allowed; "none" turns them off. Only a pull request the bot opened (from
+      its branch, for a dependency bot), started by the bot and holding only its commits, or the squash merge
+      of such a pull request on a push, is skipped; a commit that only uses a bot's email is checked as
+      usual. On a push it needs `pull-requests: read`.
     required: false
     default: ""
   commit-subject:

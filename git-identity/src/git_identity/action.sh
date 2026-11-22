@@ -112,9 +112,10 @@ if [ -n "$new" ]; then
   fi
 fi
 
-# allow-bots: a listed bot's own update (its pull request, or the merge of one) skips the author check.
+# allow-bots: an allowed bot's own update (its pull request, or the merge of one) skips the author check.
+# dependabot, renovate and kilotronic-agents are allowed unless allow-bots says `none`; it can add more.
 # Only for the event's own commits; bots.py exits non-zero for anything else, and on any error.
-if [ -n "${ALLOW_BOTS//[[:space:],]/}" ] && [ -z "$COMMITS" ] \
+if [ -z "$COMMITS" ] \
   && python3 "$GITHUB_ACTION_PATH/src/git_identity/bots.py" --bots "$ALLOW_BOTS" --range "$range"; then
   exit 0
 fi
