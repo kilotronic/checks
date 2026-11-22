@@ -72,7 +72,7 @@ Inputs:
 | ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `domains`        | empty (any)                  | Allowed email domains, separated by commas, spaces or newlines                                                                                                |
 | `commits`        | empty (this event's commits) | A git range such as `main..HEAD`, or `identity` to check the identity git would stamp on the runner (the v1 behavior)                                         |
-| `allow-bots`     | empty (the default bots)     | More bots whose own updates skip the check, such as your organisation's agent App (`<app>[bot]`); `none` turns the default bots off (see below)               |
+| `allow-bots`     | empty (the default bots)     | More bots whose own updates skip the check, such as your organization's agent App (`<app>[bot]`); `none` turns the default bots off (see below)               |
 | `commit-subject` | `false`                      | `true` also checks each commit's subject (see above)                                                                                                          |
 | `commit-types`   | empty (the default list)     | The types `commit-subject` allows, separated by commas or spaces                                                                                              |
 | `skip`           | empty                        | Checks to skip, by id: only `commit-subject`. The author check and the session trailer check are the floor: naming one warns and it runs; an unknown id fails |
@@ -85,7 +85,7 @@ Dependabot and Renovate author their commits as their GitHub noreply address, wh
 contains, and an agents' GitHub App that squash-merges its own pull requests authors the squash commit. So
 with `domains` set their updates would fail. A bot's own update gets through instead: `dependabot`,
 `renovate` and `kilotronic-agents` always (unless `allow-bots: none`), and any other App you name by its bot
-user in `allow-bots`, such as your organisation's agent App:
+user in `allow-bots`, such as your organization's agent App:
 
 ```yaml
 permissions:

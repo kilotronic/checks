@@ -1,6 +1,6 @@
 # data-leak-check
 
-A small, stdlib-only gate that keeps an organisation's private data out of its public repositories. You give it
+A small, stdlib-only gate that keeps an organization's private data out of its public repositories. You give it
 a **denylist**: the terms that must never appear in public, such as your company's internal names, people's
 names, private repository names and internal hostnames. It refuses any change, commit message or commit
 author that matches one.
@@ -97,7 +97,7 @@ with:
 **Prefer a secret for public repositories.** GitHub masks a secret's value in the log. It does not mask a
 variable: it prints the Action's inputs at the top of the step's log, so a variable's denylist is readable by
 anyone who can see the run, which on a public repository is everyone. For an organization secret, give the
-public repositories access to it in the organisation's settings.
+public repositories access to it in the organization's settings.
 
 **A missing denylist fails the check** by default (`if-empty: fail`), so a secret that was never set, or that
 a repository was not given, cannot quietly pass. Two kinds of runs never get Actions secrets:
