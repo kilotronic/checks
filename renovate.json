@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>kilotronic/renovate-config",
+    "github>kilotronic/renovate-config:automerge"
+  ],
+  "ignorePaths": ["**/node_modules/**"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "secret-scan's trufflehog-version default selects the trufflehog image; no built-in manager reads it, and CI fails unless it equals the trufflehog Action's version.",
+      "managerFilePatterns": ["secret-scan/action.yml"],
+      "matchStrings": [
+        "Trufflehog image tag[^\\n]*\\n(?:[^\\n]*\\n){0,2}?\\s*default: \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "trufflesecurity/trufflehog",
+      "datasourceTemplate": "github-tags",
+      "extractVersionTemplate": "^v(?<version>\\d+\\.\\d+\\.\\d+)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "The trufflehog Action and its image default move in one pull request (CI's parity check fails a split). Comes after the preset's rules, so it wins over its github-actions group.",
+      "matchPackageNames": ["trufflesecurity/trufflehog"],
+      "groupName": "trufflehog"
+    }
+  ]
+}
