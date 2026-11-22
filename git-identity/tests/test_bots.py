@@ -466,3 +466,35 @@ def test_a_name_without_bot_is_still_unknown(capsys) -> None:
         is None
     )
     assert "unknown bot" in capsys.readouterr().out
+
+
+# --- GitHub links a squash commit to its pull request a few seconds after the merge -------
+
+
+def test_a_push_waits_for_github_to_link_the_merge_to_its_pull_request() -> None:
+    answers = iter([[], [], [_pr(SHA_A)]])
+    waits = []
+    env = {**_ENV, "EVENT": "push", "PR_USER": "", "HEAD_REF": "", "ACTOR": "x"}
+    rc = main(
+        ["--bots", "", "--range", "x..y"],
+        environ=env,
+        git_log=_log((SHA_A, DEPENDABOT.email, GITHUB)),
+        pulls_of=lambda _sha: next(answers),
+        sleep=waits.append,
+    )
+    assert rc == 0
+    assert len(waits) == 2
+
+
+def test_a_push_gives_up_when_github_never_links_a_pull_request() -> None:
+    waits = []
+    env = {**_ENV, "EVENT": "push", "PR_USER": "", "HEAD_REF": "", "ACTOR": "x"}
+    rc = main(
+        ["--bots", "", "--range", "x..y"],
+        environ=env,
+        git_log=_log((SHA_A, DEPENDABOT.email, GITHUB)),
+        pulls_of=lambda _sha: [],
+        sleep=waits.append,
+    )
+    assert rc == 1
+    assert 0 < len(waits) <= 6 and sum(waits) <= 90
