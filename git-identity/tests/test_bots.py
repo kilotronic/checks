@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from git_identity.bots import BOTS, main, own_update, which_bot
+from git_identity.bots import BOTS, Bot, main, own_update, which_bot
 
 DEPENDABOT = BOTS["dependabot"]
 RENOVATE = BOTS["renovate"]
@@ -380,8 +380,9 @@ def test_action_still_passes_a_good_email_with_allow_bots(repo) -> None:
 
 # --- the agents' GitHub App: its squash merges on the default branch --------
 
-AGENTS = BOTS["kilotronic-agents"]
 AGENTS_EMAIL = "359638748+kilotronic-agents[bot]@users.noreply.github.com"
+# What the known entry must be; the tests go through which_bot, as the Action does.
+AGENTS = Bot("kilotronic-agents[bot]", AGENTS_EMAIL, "")
 
 
 def _agents_push(email=AGENTS_EMAIL, opener="kilotronic-agents[bot]", **over):
@@ -395,13 +396,10 @@ def _agents_push(email=AGENTS_EMAIL, opener="kilotronic-agents[bot]", **over):
 
 
 def test_the_agents_app_is_known_with_any_branch() -> None:
-    assert AGENTS.login == "kilotronic-agents[bot]"
-    assert AGENTS.email == AGENTS_EMAIL
-    assert AGENTS.branch == ""
+    assert BOTS.get("kilotronic-agents") == AGENTS
 
 
 def test_the_agents_apps_squash_merge_is_exempt() -> None:
-    assert own_update(AGENTS, **_agents_push())
     assert which_bot(["kilotronic-agents"], **_agents_push()) == "kilotronic-agents"
 
 
@@ -416,12 +414,15 @@ def test_the_agents_apps_squash_merge_is_exempt() -> None:
     ],
 )
 def test_a_look_alike_of_the_agents_app_is_not_exempt(email) -> None:
-    assert not own_update(AGENTS, **_agents_push(email=email))
+    assert which_bot(["kilotronic-agents"], **_agents_push(email=email)) is None
 
 
 def test_an_agents_app_commit_not_from_its_own_pull_request_is_not_exempt() -> None:
-    assert not own_update(AGENTS, **_agents_push(opener="mallory"))
-    assert not own_update(AGENTS, **_agents_push(pulls_of=lambda _sha: []))
+    assert which_bot(["kilotronic-agents"], **_agents_push(opener="mallory")) is None
+    assert (
+        which_bot(["kilotronic-agents"], **_agents_push(pulls_of=lambda _sha: []))
+        is None
+    )
 
 
 # --- any other GitHub App, named by its bot user ---------------------------
