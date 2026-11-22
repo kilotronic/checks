@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: kilotronic/checks/data-leak-check@a6e8917fddb679077a2e8a427598ff1fd7a160ef # v1.0.0
+      - uses: kilotronic/checks/data-leak-check@1bc3a9cd7c8875e77799faae6774f6f8eec50207 # v1.0.1
         with:
           denylist: ${{ secrets.DATA_LEAK_DENYLIST }}
 
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: kilotronic/checks/secret-scan@a6e8917fddb679077a2e8a427598ff1fd7a160ef # v1.0.0
+      - uses: kilotronic/checks/secret-scan@1bc3a9cd7c8875e77799faae6774f6f8eec50207 # v1.0.1
 
   # Shell scripts (shellcheck), workflows (actionlint), actions and base images pinned by commit and digest, and
   # safe workflows; then secret-scan's own pin rule.
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: kilotronic/checks/lint@a6e8917fddb679077a2e8a427598ff1fd7a160ef # v1.0.0
+      - uses: kilotronic/checks/lint@1bc3a9cd7c8875e77799faae6774f6f8eec50207 # v1.0.1
       # The trufflehog action and the image it runs must be the same version (Renovate moves both in one update).
       - name: trufflehog image matches the trufflehog action
         run: |
@@ -61,10 +61,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: kilotronic/checks/git-identity@a6e8917fddb679077a2e8a427598ff1fd7a160ef # v1.0.0
+      - uses: kilotronic/checks/git-identity@1bc3a9cd7c8875e77799faae6774f6f8eec50207 # v1.0.1
         with:
           domains: ixid.net, kilotronic.com
-          allow-bots: dependabot
           commit-subject: true
 
   # The format and lint bundle from .pre-commit-config.yaml (formatters, ruff, markdownlint, yamllint, ...), the
