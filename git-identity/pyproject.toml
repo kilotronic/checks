@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kilotronic-git-identity"
+version = "2.4.0"
+description = "Pre-commit hook & GitHub Action: refuse placeholder and machine-default git identities, and optionally emails outside a list of domains."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Kilotronic LLC" }]
+keywords = ["git", "pre-commit", "identity", "author"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+check-git-identity = "git_identity.check:main"
+check-commit-subject = "git_identity.commit_msg:subject_main"
+check-session-trailer = "git_identity.commit_msg:trailer_main"
+
+[project.urls]
+Homepage = "https://github.com/kilotronic/git-identity"
+Issues = "https://github.com/kilotronic/git-identity/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/git_identity"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

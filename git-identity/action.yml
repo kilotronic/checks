@@ -1,0 +1,82 @@
+name: Git Identity
+description: Refuse placeholder and machine-default git author emails, optionally emails outside a list of domains, and check commit messages (subject form; no Claude-Session trailer in a public repository).
+branding:
+  icon: user
+  color: gray-dark
+
+inputs:
+  domains:
+    description: >-
+      Allowed email domains, separated by commas, spaces or newlines (e.g. "ixid.net, kilotronic.com").
+      Empty accepts any real domain.
+    required: false
+    default: ""
+  domain:
+    description: Deprecated alias for `domains` (v1). Both may be set; the lists are combined.
+    required: false
+    default: ""
+  commits:
+    description: >-
+      What to check. Empty (default) = the commits this event brings in: a pull request's commits, or a push's
+      new commits (on a new branch, its commits the default branch doesn't have yet); other events fall back
+      to the runner's identity. A git range (e.g. "main..HEAD") checks
+      those commits. "identity" checks the identity git would stamp on this runner (the v1 behavior).
+    required: false
+    default: ""
+  allow-bots:
+    description: >-
+      Dependency bots whose own updates skip the author check, separated by commas, spaces or newlines:
+      "dependabot", "renovate". Empty (default) exempts nobody. Only a pull request the bot opened from its
+      branch, started by the bot and holding only its commits, or the merge of such a pull request on a push,
+      is skipped; a commit that only uses a bot's email is checked as usual. Needs `pull-requests: read`.
+    required: false
+    default: ""
+  commit-subject:
+    description: >-
+      "true" also checks that each commit's subject reads `<type>: <imperative summary>` (the commit-subject rule).
+      Default "false".
+    required: false
+    default: "false"
+  commit-types:
+    description: >-
+      The types commit-subject allows, separated by commas or spaces. Empty uses the default list: feat, fix,
+      refactor, perf, test, docs, build, ci, chore, style, revert.
+    required: false
+    default: ""
+  skip:
+    description: >-
+      Checks to skip, by id, separated by commas or spaces. Only the ids in skippable.txt (commit-subject) can be
+      skipped. The author check and the Claude session trailer check (public-no-leak) are floor checks: naming one
+      prints a warning and it runs. An unknown id fails the run.
+    required: false
+    default: ""
+  token:
+    description: Token for asking GitHub which pull request a pushed commit merged (only used with `allow-bots`).
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check git identity
+      shell: bash
+      env:
+        DOMAINS: ${{ inputs.domains }} ${{ inputs.domain }}
+        COMMITS: ${{ inputs.commits }}
+        EVENT: ${{ github.event_name }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        PUSH_BEFORE: ${{ github.event.before }}
+        PUSH_AFTER: ${{ github.event.after }}
+        PUSH_REF: ${{ github.ref }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        ALLOW_BOTS: ${{ inputs.allow-bots }}
+        PR_USER: ${{ github.event.pull_request.user.login }}
+        HEAD_REF: ${{ github.head_ref }}
+        ACTOR: ${{ github.actor }}
+        GITHUB_TOKEN: ${{ inputs.token }}
+        COMMIT_SUBJECT: ${{ inputs.commit-subject }}
+        COMMIT_TYPES: ${{ inputs.commit-types }}
+        SKIP_CHECKS: ${{ inputs.skip }}
+        VISIBILITY: ${{ github.event.repository.visibility }}
+      run: bash "$GITHUB_ACTION_PATH/src/git_identity/action.sh"
