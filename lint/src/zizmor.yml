@@ -1,0 +1,9 @@
+# zizmor's settings for lint's report-only zizmor check (src/lint.sh cmd_zizmor).
+# Off: the audits lint already makes, so each problem is reported once.
+rules:
+  # pinned: every action and reusable workflow by commit SHA.
+  unpinned-uses:
+    disable: true
+  # workflow-safety: read-only top-level permissions (and stricter than zizmor there).
+  excessive-permissions:
+    disable: true

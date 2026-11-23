@@ -8,6 +8,7 @@
 #   (step) workflow-safety: read-only top-level permissions, no pull request code beside secrets, no secret or
 #          event text in run: scripts, GitHub's runners for a public repo's pull requests, no skip/force inputs
 #   (step) non-root: every Dockerfile's final stage runs as a user other than root
+#   (step) zizmor: report-only GitHub Actions security audits (src/zizmor.yml); prints its findings, never fails
 #   (step) verdict: fail if any check failed, so all always run and every finding shows in one run
 #   hook <check>: for .pre-commit-hooks.yaml: install into a cache directory, then run that check
 # The Action's skip input (or a hook's --skip=<id>) may skip the ids in skippable.txt; the floor checks refuse
@@ -16,6 +17,7 @@ set -euo pipefail
 
 SHELLCHECK_VERSION=0.11.0
 ACTIONLINT_VERSION=1.7.12
+ZIZMOR_VERSION=1.32.0
 
 out() { echo "$1=$2" >>"${GITHUB_OUTPUT:-/dev/stdout}"; }
 
@@ -79,12 +81,53 @@ install_tools() {
   LINT_BIN="$dir"
 }
 
+# Install the pinned zizmor once (checksum checked) and set ZIZMOR to it. zizmor is report-only, so a platform
+# with no build, or a failed download, is a warning and ZIZMOR stays empty; a bad checksum never installs it.
+install_zizmor() {
+  local target sum dir tmp
+  ZIZMOR=""
+  case "$(uname -s)-$(uname -m)" in
+    Linux-x86_64) target=x86_64-unknown-linux-gnu sum=bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b ;;
+    Linux-aarch64 | Linux-arm64) target=aarch64-unknown-linux-gnu sum=cb152b207f815116d7fa1c1ee4614f61578803351395052908095e79adfd9fd0 ;;
+    Darwin-arm64) target=aarch64-apple-darwin sum=6efed18c4539a663fd3c851a2be9533fd8456c4e646d9416206da059154a0d3c ;;
+    Darwin-x86_64) target=x86_64-apple-darwin sum=6983143c719ada6845a69cc4dd2bacc215f971662fecd8bbd2678388e5ce5969 ;;
+    *)
+      echo "::warning::lint: no zizmor build for $(uname -s) $(uname -m); zizmor (report-only) does not run"
+      return 0
+      ;;
+  esac
+  dir="kilotronic-lint-zizmor$ZIZMOR_VERSION"
+  if [ -n "${RUNNER_TEMP:-}" ]; then
+    dir="$RUNNER_TEMP/$dir"
+  else
+    dir="${XDG_CACHE_HOME:-$HOME/.cache}/$dir"
+  fi
+  if [ ! -x "$dir/zizmor" ]; then
+    mkdir -p "$dir"
+    tmp=$(mktemp -d "$dir/download.XXXXXX")
+    if ! curl -sSfL -o "$tmp/zizmor.tar.gz" \
+      "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-${target}.tar.gz" \
+      || ! check_sum "$sum" "$tmp/zizmor.tar.gz" \
+      || ! tar -xzf "$tmp/zizmor.tar.gz" -C "$tmp" zizmor; then
+      rm -rf "$tmp"
+      echo "::warning::lint: zizmor $ZIZMOR_VERSION could not be downloaded and checked; zizmor (report-only) does not run"
+      return 0
+    fi
+    mv -f "$tmp/zizmor" "$dir/zizmor" # whole, so two hooks running at once never see half a file
+    rm -rf "$tmp"
+  fi
+  ZIZMOR="$dir/zizmor"
+}
+
 cmd_install() {
   check_skip_ids
   install_tools
   "$LINT_BIN/shellcheck" --version | sed -n 2p
   echo "actionlint $("$LINT_BIN/actionlint" --version | head -1)"
   out bin "$LINT_BIN"
+  install_zizmor
+  [ -n "$ZIZMOR" ] && "$ZIZMOR" --version
+  out zizmor "$ZIZMOR"
 }
 
 EXCLUDE_GLOBS=()
@@ -441,6 +484,27 @@ cmd_non_root() {
   return "$bad"
 }
 
+# zizmor, report-only: GitHub Actions audits lint has no rule for (template injection from inputs and outputs,
+# dangerous triggers, credentials left by checkout, GITHUB_ENV writes, cache poisoning). Its audits that pinned
+# and workflow-safety already make are off in src/zizmor.yml, so each problem is reported once. Offline: no
+# token, no network. It prints its findings and never fails; a later release makes it blocking.
+cmd_zizmor() {
+  local files=() f rc=0
+  if [ -z "${ZIZMOR:-}" ]; then
+    echo "::warning::zizmor: not installed, so not run (report-only)"
+    return 0
+  fi
+  while IFS= read -r -d '' f; do files+=("$f"); done < <(workflow_files)
+  if [ "${#files[@]}" -eq 0 ]; then
+    echo "zizmor: no workflows"
+    return 0
+  fi
+  "$ZIZMOR" --offline --quiet --no-exit-codes --format plain \
+    --config "$(dirname "${BASH_SOURCE[0]}")/zizmor.yml" "${files[@]}" || rc=$?
+  [ "$rc" = 0 ] || echo "::warning::zizmor: exited $rc; report-only, so this is not a failure"
+  echo "zizmor: report-only, ${#files[@]} files; what it found above does not fail the check"
+}
+
 cmd_verdict() {
   local failed=()
   [ "${SHELLCHECK_OUTCOME:-}" = failure ] && failed+=(shellcheck)
@@ -461,9 +525,10 @@ cmd_hook() {
   local check="${1:-}" arg
   case "$check" in
     shellcheck | actionlint) install_tools ;;
+    zizmor) install_zizmor >&2 ;;
     pinned | workflow-safety | non-root) ;;
     *)
-      echo "usage: lint.sh hook shellcheck|actionlint|pinned|workflow-safety|non-root [--exclude=<glob>]..." >&2
+      echo "usage: lint.sh hook shellcheck|actionlint|pinned|workflow-safety|non-root|zizmor [--exclude=<glob>]..." >&2
       exit 2
       ;;
   esac
@@ -482,6 +547,6 @@ cmd_hook() {
   "cmd_${check//-/_}"
 }
 
-check="${1:?usage: lint.sh install|shellcheck|actionlint|pinned|workflow-safety|non-root|verdict|hook <check>}"
+check="${1:?usage: lint.sh install|shellcheck|actionlint|pinned|workflow-safety|non-root|zizmor|verdict|hook <check>}"
 shift
 "cmd_${check//-/_}" "$@"

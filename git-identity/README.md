@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: kilotronic/checks/git-identity@<commit of the release> # v1.1.0
+      - uses: kilotronic/checks/git-identity@<commit of the release> # v1.2.0
         with:
           domains: ixid.net, kilotronic.com # optional
 ```
@@ -93,7 +93,7 @@ permissions:
   pull-requests: read # allow-bots: which pull request a pushed commit merged
 steps:
   - uses: actions/checkout@v4
-  - uses: kilotronic/checks/git-identity@<commit of the release> # v1.1.0
+  - uses: kilotronic/checks/git-identity@<commit of the release> # v1.2.0
     with:
       domains: ixid.net
       allow-bots: acme-agents[bot] # optional: an App besides the default bots
@@ -133,7 +133,7 @@ Works with [prek](https://github.com/j178/prek) and with [pre-commit](https://pr
 ```yaml
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.1.0
+    rev: <commit of the release> # frozen: v1.2.0
     hooks:
       - id: git-identity
         args: ["--domain=ixid.net,kilotronic.com"] # optional; quoted, or YAML splits the list at the comma
@@ -146,7 +146,7 @@ The commit-message hooks run at the `commit-msg` stage:
 default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.1.0
+    rev: <commit of the release> # frozen: v1.2.0
     hooks:
       - id: git-identity
       - id: commit-subject
@@ -182,7 +182,7 @@ new commits. Use the Action to catch anything that slips past.
 ## Use as a CLI
 
 ```bash
-pip install "git+https://github.com/kilotronic/checks.git@v1.1.0#subdirectory=git-identity"
+pip install "git+https://github.com/kilotronic/checks.git@v1.2.0#subdirectory=git-identity"
 check-git-identity                                  # this machine; default identities only
 check-git-identity --domain ixid.net,kilotronic.com # also require one of these domains
 check-git-identity --commits origin/main..HEAD --domain ixid.net  # judge existing commits' authors

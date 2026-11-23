@@ -5,7 +5,7 @@
 # === lint
 # Hooks for pre-commit and prek.
 #
-# shellcheck, actionlint, pinned, workflow-safety and non-root run the Action's own lint/src/lint.sh step on the
+# shellcheck, actionlint, pinned, workflow-safety, non-root and zizmor run the Action's own lint/src/lint.sh step on the
 # repository's tracked files, with the same pinned, checksum-checked shellcheck and actionlint (cached under
 # ~/.cache).
 #
@@ -59,6 +59,17 @@
   language: script
   pass_filenames: false
   files: Dockerfile
+  stages: [pre-commit, pre-merge-commit, manual]
+- id: zizmor
+  name: zizmor (report-only GitHub Actions security audits)
+  description: >-
+    zizmor's audits on every workflow and action, offline, minus the ones pinned and workflow-safety already make
+    (lint/src/zizmor.yml). Report-only: it prints what it finds and never fails the commit.
+  entry: lint/src/lint.sh hook zizmor
+  language: script
+  pass_filenames: false
+  files: (^\.github/workflows/.*\.ya?ml$|(^|/)action\.ya?ml$)
+  verbose: true
   stages: [pre-commit, pre-merge-commit, manual]
 
 # --- format-all: formatters (they rewrite files; run them before the linters)

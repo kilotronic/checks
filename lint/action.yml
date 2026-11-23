@@ -1,5 +1,5 @@
 name: Lint shell scripts and workflows
-description: shellcheck every tracked shell script, actionlint every workflow, check that actions, base images and pre-commit hooks are pinned, that workflows keep secrets and runners safe, and that containers run as a non-root user. Pinned tool versions, checked downloads, no configuration needed.
+description: shellcheck every tracked shell script, actionlint every workflow, check that actions, base images and pre-commit hooks are pinned, that workflows keep secrets and runners safe, and that containers run as a non-root user; zizmor reports Actions security findings without failing. Pinned tool versions, checked downloads, no configuration needed.
 branding:
   icon: check-square
   color: gray-dark
@@ -48,7 +48,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install shellcheck and actionlint (pinned, checksums checked)
+    - name: Install shellcheck, actionlint and zizmor (pinned, checksums checked)
       id: install
       shell: bash
       env:
@@ -108,6 +108,15 @@ runs:
         EXCLUDE: ${{ inputs.exclude }}
         SKIP_CHECKS: ${{ inputs.skip }}
       run: bash "$GITHUB_ACTION_PATH/src/lint.sh" non-root
+
+    # Report-only: prints what it finds and never fails the job, so it is not in the verdict below.
+    - name: zizmor (report-only GitHub Actions security audits)
+      continue-on-error: true
+      shell: bash
+      env:
+        ZIZMOR: ${{ steps.install.outputs.zizmor }}
+        EXCLUDE: ${{ inputs.exclude }}
+      run: bash "$GITHUB_ACTION_PATH/src/lint.sh" zizmor
 
     - name: Result
       shell: bash

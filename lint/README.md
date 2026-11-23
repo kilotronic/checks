@@ -2,7 +2,7 @@
 
 A GitHub Action and a set of pre-commit hooks for the checks every repository wants, with no configuration.
 
-The Action runs five checks:
+The Action runs five checks, and a sixth that only reports:
 
 - **shellcheck** on every tracked shell script: `*.sh`, `*.bash`, and extension-less files with a
   `sh`/`bash` shebang.
@@ -33,9 +33,16 @@ The Action runs five checks:
     `bypass`, or `no-verify`).
 - **non-root**: every Dockerfile's final stage runs as a user other than root: its own `USER`, the user of the
   stage it is built `FROM`, or an image tagged `:nonroot`.
+- **zizmor** (report-only): [zizmor](https://docs.zizmor.sh)'s GitHub Actions audits on every workflow and
+  action, for what the checks above have no rule for: template injection from inputs, step outputs and `env`,
+  dangerous triggers, a checkout that leaves its token behind (`persist-credentials`), `GITHUB_ENV` writes,
+  cache poisoning. Its `unpinned-uses` and `excessive-permissions` audits are off
+  ([`src/zizmor.yml`](src/zizmor.yml)), since pinned and workflow-safety report those, so each problem is
+  reported once. It runs offline, with no token. It prints what it finds and never fails the job; a later
+  release makes it blocking.
 
-shellcheck and actionlint are installed at pinned versions, and their downloads are checked against
-checksums. All checks always run, so one run shows every finding. The job fails if any of them found
+shellcheck, actionlint and zizmor are installed at pinned versions, and their downloads are checked against
+checksums. All checks always run, so one run shows every finding. The job fails if any of the first five found
 something.
 
 workflow-safety is this repository's own check, not [zizmor](https://github.com/zizmorcore/zizmor): zizmor
@@ -55,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # pin a commit SHA, as the pinned check will tell you
-      - uses: kilotronic/checks/lint@<commit of the release> # v1.1.0
+      - uses: kilotronic/checks/lint@<commit of the release> # v1.2.0
 ```
 
 Linux and macOS runners, x86_64 or arm64.
@@ -69,7 +76,7 @@ your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/kilotronic/checks
-    rev: <commit of the release> # frozen: v1.1.0
+    rev: <commit of the release> # frozen: v1.2.0
     hooks:
       # format-all: formatters, which rewrite files (first, so the linters see the result)
       - id: ruff-format # Python
@@ -97,6 +104,7 @@ repos:
       - id: workflow-safety
       - id: non-root
         # args: [--exclude=vendor/**]   # like the Action's exclude input (lint.sh hooks only)
+      - id: zizmor # report-only: prints its findings, never fails the commit
 ```
 
 Run the same hooks in CI with `prek run --all-files` (`SKIP=` any hook CI must not run), so a commit is
@@ -173,17 +181,17 @@ The floor checks can't be skipped: naming `shellcheck`, `actionlint`, `pinned`, 
 
 ## Inputs
 
-| Input                                | Default | Meaning                                                                                                                                 |
-| ------------------------------------ | ------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `skip`                               | empty   | Checks to skip, by id: only `non-root`; a floor check named here warns and runs                                                         |
-| `shellcheck`, `actionlint`, `pinned` | `true`  | Kept for v1 callers: floor checks, so `false` warns and they run                                                                        |
-| `exclude`                            | empty   | Space- or newline-separated git glob patterns that shellcheck, pinned, workflow-safety and non-root skip, e.g. `vendor/** originals/**` |
-| `shellcheck-args`                    | empty   | Extra shellcheck arguments, split on spaces, e.g. `--severity=warning`                                                                  |
-| `actionlint-args`                    | empty   | Extra actionlint arguments, split on spaces, e.g. `-ignore=SC2016`                                                                      |
+| Input                                | Default | Meaning                                                                                                                            |
+| ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `skip`                               | empty   | Checks to skip, by id: only `non-root`; a floor check named here warns and runs                                                    |
+| `shellcheck`, `actionlint`, `pinned` | `true`  | Kept for v1 callers: floor checks, so `false` warns and they run                                                                   |
+| `exclude`                            | empty   | Space- or newline-separated git glob patterns that shellcheck, pinned, workflow-safety, non-root and zizmor skip, e.g. `vendor/**` |
+| `shellcheck-args`                    | empty   | Extra shellcheck arguments, split on spaces, e.g. `--severity=warning`                                                             |
+| `actionlint-args`                    | empty   | Extra actionlint arguments, split on spaces, e.g. `-ignore=SC2016`                                                                 |
 
 ## Versions
 
-shellcheck 0.11.0 and actionlint 1.7.12. A new version means new checksums in `src/lint.sh`. The bundle's
+shellcheck 0.11.0, actionlint 1.7.12 and zizmor 1.32.0. A new version means new checksums in `src/lint.sh`. The bundle's
 versions are in the repository's root `.pre-commit-hooks.yaml` and the table above.
 
 Released with the rest of kilotronic/checks: one `vX.Y.Z` tag for the repository, no moving tags. Pin the
