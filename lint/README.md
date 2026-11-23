@@ -39,7 +39,7 @@ The Action runs five checks, and a sixth that only reports:
   cache poisoning. Its `unpinned-uses` and `excessive-permissions` audits are off
   ([`src/zizmor.yml`](src/zizmor.yml)), since pinned and workflow-safety report those, so each problem is
   reported once. It runs offline, with no token. It prints what it finds and never fails the job, so it can't
-  be skipped (`skip: zizmor` is an unknown id); a later release makes it blocking. Its settings are this
+  be skipped: `skip: zizmor` is an unknown id, which fails the job like any typo. A later release makes it blocking. Its settings are this
   repository's, not a `zizmor.yml` of yours; an inline `# zizmor: ignore[<audit>]` comment still works.
 
 shellcheck, actionlint and zizmor are installed at pinned versions, and their downloads are checked against

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Steps of the Lint action (action.yml). Inputs arrive as env vars.
-#   (step) install: install the pinned shellcheck and actionlint (checksums checked) into $LINT_BIN, and zizmor
+#   (step) install: install the pinned shellcheck and actionlint (checksums checked) into $LINT_BIN, and zizmor into its own
+#          cache folder (the step's zizmor output)
 #   (step) shellcheck: check every tracked shell script (*.sh, *.bash, or a sh/bash shebang), minus EXCLUDE
 #   (step) actionlint: check the workflows in .github/workflows (their run: scripts through shellcheck too)
 #   (step) pinned: every action used is pinned to a commit SHA, every Docker base image to a digest, every
@@ -133,7 +134,7 @@ cmd_install() {
   echo "actionlint $("$LINT_BIN/actionlint" --version | head -1)"
   out bin "$LINT_BIN"
   install_zizmor
-  if [ -n "$ZIZMOR" ]; then "$ZIZMOR" --version; fi
+  if [ -n "$ZIZMOR" ]; then "$ZIZMOR" --version || true; fi
   out zizmor "$ZIZMOR"
 }
 

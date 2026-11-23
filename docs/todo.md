@@ -67,3 +67,9 @@ online audits (impostor commits, known-vulnerable actions, ref confusion), which
 make; give workflow-safety that rule before or with the switch. And settle the config: lint passes its own
 `lint/src/zizmor.yml`, so a repository's `zizmor.yml` is ignored; before zizmor can fail a build, a repository
 needs a reasoned way to turn off an audit that doesn't fit it.
+
+## lint installs its tools by two copies of the same steps
+
+`install_tools` (shellcheck, actionlint) and `install_zizmor` in `lint/src/lint.sh` each pick the cache folder and
+download, check and move a binary into place. One helper that takes a URL, a checksum and a file name would keep
+that in one place; zizmor's caller keeps its warn-and-continue on failure.
