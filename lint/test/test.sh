@@ -912,7 +912,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@$sha # v4"
-quiet "zizmor hook honours --exclude" '\[artipacked\]' lint hook zizmor --exclude='.github/**'
+quiet "zizmor hook honors --exclude" '\[artipacked\]' lint hook zizmor --exclude='.github/**'
 repo a.txt hi
 reports "zizmor passes a repository with no workflows" 'zizmor: no workflows' lint hook zizmor
 reports "zizmor not installed is a warning, not a failure" 'zizmor.*not installed' env ZIZMOR= bash "$LINT" zizmor
@@ -960,6 +960,21 @@ if [ -n "$(find "$tmp/cache-zizmor" -maxdepth 2 -type f -name zizmor 2>/dev/null
 else
   pass "the bad zizmor download left no zizmor installed"
 fi
+# A zizmor that downloads but can't run here (another libc, say) warns; install and the hook still pass.
+zz_ver=$(sed -n 's/^ZIZMOR_VERSION=//p' "$LINT")
+mkdir -p "$tmp/cache-zzbroken/kilotronic-lint-zizmor$zz_ver"
+printf '#!/bin/sh\nexit 1\n' >"$tmp/cache-zzbroken/kilotronic-lint-zizmor$zz_ver/zizmor"
+chmod +x "$tmp/cache-zzbroken/kilotronic-lint-zizmor$zz_ver/zizmor"
+reports "a zizmor that can't run warns, and install passes" 'zizmor .* does not run here' \
+  env XDG_CACHE_HOME="$tmp/cache-zzbroken" bash "$LINT" install
+repo .github/workflows/w.yml "$(workflow "uses: actions/checkout@$sha")"
+reports "a zizmor that can't run warns, and the hook passes" 'zizmor .* does not run here' \
+  env XDG_CACHE_HOME="$tmp/cache-zzbroken" bash "$LINT" hook zizmor
+# A cache folder that can't be written: zizmor warns and the hook passes.
+mkdir -p "$tmp/cache-ro" && chmod a-w "$tmp/cache-ro"
+reports "zizmor with a cache it can't write warns, and the hook passes" 'zizmor .* could not be' \
+  env XDG_CACHE_HOME="$tmp/cache-ro" bash "$LINT" hook zizmor
+chmod u+w "$tmp/cache-ro"
 
 echo
 if [ "$fails" -gt 0 ]; then

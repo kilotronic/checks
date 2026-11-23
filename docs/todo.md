@@ -64,4 +64,6 @@ pinned and workflow-safety:
 Then make the step fail on what is left, with the high findings as the floor, and decide whether to turn on the
 online audits (impostor commits, known-vulnerable actions, ref confusion), which need a token. Turning off
 `excessive-permissions` also loses its job-level check (2 findings in the trial), which workflow-safety does not
-make; give workflow-safety that rule before or with the switch.
+make; give workflow-safety that rule before or with the switch. And settle the config: lint passes its own
+`lint/src/zizmor.yml`, so a repository's `zizmor.yml` is ignored; before zizmor can fail a build, a repository
+needs a reasoned way to turn off an audit that doesn't fit it.

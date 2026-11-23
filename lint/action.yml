@@ -32,7 +32,7 @@ inputs:
     default: ""
   exclude:
     description: >-
-      Paths shellcheck and the pinned check skip, as space- or newline-separated git glob patterns (e.g. "vendor/** originals/**").
+      Paths shellcheck, pinned, workflow-safety, non-root and zizmor skip, as space- or newline-separated git glob patterns (e.g. "vendor/** originals/**").
       A .shellcheckrc in the repo still applies to the files that are checked.
     required: false
     default: ""

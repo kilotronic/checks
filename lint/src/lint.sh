@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Steps of the Lint action (action.yml). Inputs arrive as env vars.
-#   (step) install: install the pinned shellcheck and actionlint (checksums checked) into $LINT_BIN
+#   (step) install: install the pinned shellcheck and actionlint (checksums checked) into $LINT_BIN, and zizmor
 #   (step) shellcheck: check every tracked shell script (*.sh, *.bash, or a sh/bash shebang), minus EXCLUDE
 #   (step) actionlint: check the workflows in .github/workflows (their run: scripts through shellcheck too)
 #   (step) pinned: every action used is pinned to a commit SHA, every Docker base image to a digest, every
@@ -82,7 +82,8 @@ install_tools() {
 }
 
 # Install the pinned zizmor once (checksum checked) and set ZIZMOR to it. zizmor is report-only, so a platform
-# with no build, or a failed download, is a warning and ZIZMOR stays empty; a bad checksum never installs it.
+# with no build, a cache it can't write, a failed download or a binary that won't run here is a warning and
+# ZIZMOR stays empty; a bad checksum never installs it.
 install_zizmor() {
   local target sum dir tmp
   ZIZMOR=""
@@ -103,8 +104,10 @@ install_zizmor() {
     dir="${XDG_CACHE_HOME:-$HOME/.cache}/$dir"
   fi
   if [ ! -x "$dir/zizmor" ]; then
-    mkdir -p "$dir"
-    tmp=$(mktemp -d "$dir/download.XXXXXX")
+    if ! mkdir -p "$dir" 2>/dev/null || ! tmp=$(mktemp -d "$dir/download.XXXXXX" 2>/dev/null); then
+      echo "::warning::lint: zizmor $ZIZMOR_VERSION could not be installed in $dir; zizmor (report-only) does not run"
+      return 0
+    fi
     if ! curl -sSfL -o "$tmp/zizmor.tar.gz" \
       "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-${target}.tar.gz" \
       || ! check_sum "$sum" "$tmp/zizmor.tar.gz" \
@@ -116,6 +119,10 @@ install_zizmor() {
     mv -f "$tmp/zizmor" "$dir/zizmor" # whole, so two hooks running at once never see half a file
     rm -rf "$tmp"
   fi
+  if ! "$dir/zizmor" --version >/dev/null 2>&1; then
+    echo "::warning::lint: zizmor $ZIZMOR_VERSION does not run here; zizmor (report-only) does not run"
+    return 0
+  fi
   ZIZMOR="$dir/zizmor"
 }
 
@@ -126,7 +133,7 @@ cmd_install() {
   echo "actionlint $("$LINT_BIN/actionlint" --version | head -1)"
   out bin "$LINT_BIN"
   install_zizmor
-  [ -n "$ZIZMOR" ] && "$ZIZMOR" --version
+  if [ -n "$ZIZMOR" ]; then "$ZIZMOR" --version; fi
   out zizmor "$ZIZMOR"
 }
 

@@ -6,8 +6,8 @@
 # Hooks for pre-commit and prek.
 #
 # shellcheck, actionlint, pinned, workflow-safety, non-root and zizmor run the Action's own lint/src/lint.sh step on the
-# repository's tracked files, with the same pinned, checksum-checked shellcheck and actionlint (cached under
-# ~/.cache).
+# repository's tracked files, with the same pinned, checksum-checked shellcheck, actionlint and zizmor (cached
+# under ~/.cache).
 #
 # The rest are the format and lint bundle (format-all and lint-all): formatters first, then linters, each at a
 # pinned version. A repository's own configuration file (ruff.toml, .prettierrc, .editorconfig, taplo.toml,

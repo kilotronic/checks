@@ -38,8 +38,9 @@ The Action runs five checks, and a sixth that only reports:
   dangerous triggers, a checkout that leaves its token behind (`persist-credentials`), `GITHUB_ENV` writes,
   cache poisoning. Its `unpinned-uses` and `excessive-permissions` audits are off
   ([`src/zizmor.yml`](src/zizmor.yml)), since pinned and workflow-safety report those, so each problem is
-  reported once. It runs offline, with no token. It prints what it finds and never fails the job; a later
-  release makes it blocking.
+  reported once. It runs offline, with no token. It prints what it finds and never fails the job, so it can't
+  be skipped (`skip: zizmor` is an unknown id); a later release makes it blocking. Its settings are this
+  repository's, not a `zizmor.yml` of yours; an inline `# zizmor: ignore[<audit>]` comment still works.
 
 shellcheck, actionlint and zizmor are installed at pinned versions, and their downloads are checked against
 checksums. All checks always run, so one run shows every finding. The job fails if any of the first five found
@@ -48,8 +49,8 @@ something.
 workflow-safety is this repository's own check, not [zizmor](https://github.com/zizmorcore/zizmor): zizmor
 judges which `${{ }}` text an attacker controls and flags `pull_request_target` whether or not it runs pull
 request code, while these rules are plainer and stricter (no secret or event text in a `run:` script at all,
-read-only at the top, no self-hosted runner for a public repository's pull requests), need no third download,
-and run with Python's standard library alone.
+read-only at the top, no self-hosted runner for a public repository's pull requests), and run with Python's
+standard library alone. zizmor runs beside them, report-only, for what these rules don't cover (below).
 
 ## Use
 
