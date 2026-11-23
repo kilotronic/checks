@@ -839,12 +839,92 @@ expect "a hook passes a clean repository" 0 lint hook pinned
 expect "a hook refuses an unknown argument" 1 lint hook pinned --nope
 expect "an unknown hook is refused" 1 lint hook nope
 
+# --- zizmor: report-only, so it passes whatever it finds; what it prints is the test
+# reports <name> <regex> <command...>: the command must succeed and print a line matching the regex.
+reports() {
+  local name=$1 want=$2 got=0
+  shift 2
+  "$@" >"$tmp/log" 2>&1 || got=1
+  if [ "$got" = 0 ] && grep -qE "$want" "$tmp/log"; then pass "$name"; else
+    fail "$name"
+    sed 's/^/     /' "$tmp/log"
+  fi
+}
+# quiet <name> <regex> <command...>: the command must succeed and print no line matching the regex.
+quiet() {
+  local name=$1 unwanted=$2 got=0
+  shift 2
+  "$@" >"$tmp/log" 2>&1 || got=1
+  if [ "$got" = 0 ] && ! grep -qE "$unwanted" "$tmp/log"; then pass "$name"; else
+    fail "$name"
+    sed 's/^/     /' "$tmp/log"
+  fi
+}
+finding='^(error|warning|help|info|note)\['
+# shellcheck disable=SC2016 # ${{ }} is meant literally: it is the finding
+repo .github/workflows/w.yml 'on: issues
+permissions:
+  contents: read
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ github.event.issue.title }}"'
+reports "zizmor reports a planted template injection, and passes" 'template-injection.*w\.yml|w\.yml.*template-injection|\[template-injection\]' lint hook zizmor
+repo .github/workflows/w.yml "on: push
+permissions:
+  contents: read
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@$sha # v4"
+reports "zizmor reports a checkout without persist-credentials: false, and passes" '\[artipacked\]' lint hook zizmor
+repo .github/workflows/w.yml "on: push
+permissions:
+  contents: read
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@$sha # v4
+        with:
+          persist-credentials: false
+      - run: echo hi"
+quiet "zizmor is quiet on a clean workflow" "$finding" lint hook zizmor
+reports "zizmor says a clean workflow has no findings" 'No findings' lint hook zizmor
+repo .github/workflows/w.yml "on: push
+permissions: write-all
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false"
+quiet "zizmor leaves unpinned actions and permissions to pinned and workflow-safety" \
+  '\[(unpinned-uses|excessive-permissions)\]' lint hook zizmor
+repo .github/workflows/w.yml "on: push
+permissions:
+  contents: read
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@$sha # v4"
+quiet "zizmor hook honours --exclude" '\[artipacked\]' lint hook zizmor --exclude='.github/**'
+repo a.txt hi
+reports "zizmor passes a repository with no workflows" 'zizmor: no workflows' lint hook zizmor
+reports "zizmor not installed is a warning, not a failure" 'zizmor.*not installed' env ZIZMOR= bash "$LINT" zizmor
+
 # --- downloads: a tool whose checksum does not match is never installed or run. The fake downloads are
 # well-formed archives of a "tool" that always passes, so only the checksum can stop them.
 mkdir -p "$tmp/fakebin" "$tmp/fake/shellcheck-v0" && cd "$tmp/fake"
-printf '#!/bin/sh\nexit 0\n' >shellcheck-v0/shellcheck && cp shellcheck-v0/shellcheck actionlint && chmod +x shellcheck-v0/shellcheck actionlint
+printf '#!/bin/sh\nexit 0\n' >shellcheck-v0/shellcheck && cp shellcheck-v0/shellcheck actionlint && cp actionlint zizmor \
+  && chmod +x shellcheck-v0/shellcheck actionlint zizmor
 sc_dir=$(sed -n 's/^SHELLCHECK_VERSION=//p' "$LINT")
-mv shellcheck-v0 "shellcheck-v$sc_dir" && tar -cJf sc.tar.xz "shellcheck-v$sc_dir" && tar -czf al.tar.gz actionlint
+mv shellcheck-v0 "shellcheck-v$sc_dir" && tar -cJf sc.tar.xz "shellcheck-v$sc_dir" && tar -czf al.tar.gz actionlint \
+  && tar -czf zz.tar.gz zizmor
 real_curl=$(command -v curl)
 # FAKE names the tool whose download is faked; the other comes from the real curl.
 cat >"$tmp/fakebin/curl" <<CURL
@@ -852,10 +932,15 @@ cat >"$tmp/fakebin/curl" <<CURL
 url=\$(eval echo "\\\${\$#}")
 case "\$url" in
   *shellcheck*) [ "\$FAKE" = shellcheck ] || exec "$real_curl" "\$@" ;;
+  *zizmor*) [ "\$FAKE" = zizmor ] || exec "$real_curl" "\$@" ;;
   *) [ "\$FAKE" = actionlint ] || exec "$real_curl" "\$@" ;;
 esac
 while [ "\$1" != -o ]; do shift; done
-case "\$url" in *shellcheck*) cp "$tmp/fake/sc.tar.xz" "\$2" ;; *) cp "$tmp/fake/al.tar.gz" "\$2" ;; esac
+case "\$url" in
+  *shellcheck*) cp "$tmp/fake/sc.tar.xz" "\$2" ;;
+  *zizmor*) cp "$tmp/fake/zz.tar.gz" "\$2" ;;
+  *) cp "$tmp/fake/al.tar.gz" "\$2" ;;
+esac
 CURL
 chmod +x "$tmp/fakebin/curl"
 for tool in shellcheck actionlint; do
@@ -867,6 +952,14 @@ for tool in shellcheck actionlint; do
     pass "the bad $tool download left no tool installed"
   fi
 done
+# zizmor is report-only: a bad download warns and installs nothing, and the other tools still install.
+reports "a zizmor download with the wrong checksum warns, and install passes" 'zizmor .* could not be downloaded and checked' \
+  env FAKE=zizmor PATH="$tmp/fakebin:$PATH" XDG_CACHE_HOME="$tmp/cache-zizmor" bash "$LINT" install
+if [ -n "$(find "$tmp/cache-zizmor" -maxdepth 2 -type f -name zizmor 2>/dev/null)" ]; then
+  fail "the bad zizmor download left zizmor installed"
+else
+  pass "the bad zizmor download left no zizmor installed"
+fi
 
 echo
 if [ "$fails" -gt 0 ]; then
