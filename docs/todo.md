@@ -43,3 +43,33 @@ apart from a finding by its exit code and say what failed.
 
 A message such as "rename `initialise()` to `initialize()`" is refused, even with the old name in backticks.
 Skip backtick spans in the commit message the way the prose hook skips them in files.
+
+## Make zizmor blocking once repos are clean
+
+lint's zizmor check is report-only: it prints its findings and never fails. Make it blocking in a later release,
+once the repositories that pin these tools no longer trip it. A trial over the owner's 53 consuming repositories
+(151 workflow and action files, zizmor 1.32.0 offline) found, besides the two audits now off as duplicates of
+pinned and workflow-safety:
+
+1. Fix first, the high findings: `template-injection` (29 findings in 8 repositories; pass the value through
+   `env:` and use `"$NAME"`) and `dangerous-triggers` (4 in 4: drop `pull_request_target` / `workflow_run` or
+   prove the job never touches the pull request's code).
+2. Then `github-env` (4), `cache-poisoning` (3), `github-app` (9, narrow the token's permissions),
+   `use-trusted-publishing` (3) and `adhoc-packages` (2).
+3. `artipacked` is the loudest (159 in 37), mostly read-only CI where the token never leaves the job: add
+   `persist-credentials: false` to every checkout, a mechanical change a script can make.
+4. The style audits (`self-repository`, 38) and the one `obfuscation` finding (this repository's own test
+   denylist, on purpose) are turned off or ignored in `lint/src/zizmor.yml` rather than fixed.
+
+Then make the step fail on what is left, with the high findings as the floor, and decide whether to turn on the
+online audits (impostor commits, known-vulnerable actions, ref confusion), which need a token. Turning off
+`excessive-permissions` also loses its job-level check (2 findings in the trial), which workflow-safety does not
+make; give workflow-safety that rule before or with the switch. And settle the config: lint passes its own
+`lint/src/zizmor.yml`, so a repository's `zizmor.yml` is ignored; before zizmor can fail a build, a repository
+needs a reasoned way to turn off an audit that doesn't fit it.
+
+## lint installs its tools by two copies of the same steps
+
+`install_tools` (shellcheck, actionlint) and `install_zizmor` in `lint/src/lint.sh` each pick the cache folder and
+download, check and move a binary into place. One helper that takes a URL, a checksum and a file name would keep
+that in one place; zizmor's caller keeps its warn-and-continue on failure.

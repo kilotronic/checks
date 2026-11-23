@@ -43,7 +43,7 @@ def test_each_tool_is_a_folder_with_its_action() -> None:
 
 def test_hook_ids_are_unique() -> None:
     ids = [h["id"] for h in hooks()]
-    assert len(ids) == 31
+    assert len(ids) == 32
     assert len(ids) == len(set(ids))
 
 
