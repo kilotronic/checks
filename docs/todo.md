@@ -73,3 +73,14 @@ needs a reasoned way to turn off an audit that doesn't fit it.
 `install_tools` (shellcheck, actionlint) and `install_zizmor` in `lint/src/lint.sh` each pick the cache folder and
 download, check and move a binary into place. One helper that takes a URL, a checksum and a file name would keep
 that in one place; zizmor's caller keeps its warn-and-continue on failure.
+
+## us-english loses its skip list when a repo sets its own `exclude:`
+
+us-english keeps its skip list in the hook's `exclude:`, so a repo that sets its own `exclude:` for the hook
+replaces the skip list, and the hook then rewrites files it should skip (seen: a NOTICE file and Vale word
+lists). Move the built-in skips into the script so a repo's `exclude:` adds to them.
+
+## vendored-license-check misses a mixed-case license file name
+
+vendored-license-check doesn't recognize a mixed-case license file name such as `LICENSE-Name.txt`. Match license
+file names case-insensitively.
