@@ -45,6 +45,7 @@ jobs:
       - uses: kilotronic/checks/lint@1bc3a9cd7c8875e77799faae6774f6f8eec50207 # v1.0.1
       # The trufflehog action and the image it runs must be the same version (Renovate moves both in one update).
       - name: trufflehog image matches the trufflehog action
+        shell: bash # adds -o pipefail: a failed grep fails the step instead of feeding sed nothing
         run: |
           action=$(grep -oE 'trufflehog@[0-9a-f]+ # v[0-9.]+' secret-scan/action.yml | sed 's/.*# v//')
           image=$(awk '/trufflehog-version:/{f=1} f && /default:/{gsub(/[" ]/,"",$2); print $2; exit}' secret-scan/action.yml)
