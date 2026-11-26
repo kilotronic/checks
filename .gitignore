@@ -12,3 +12,8 @@ venv/
 htmlcov/
 node_modules/
 .DS_Store
+
+# Secrets: never commit local environment files
+.env
+.env.*
+!.env.example
